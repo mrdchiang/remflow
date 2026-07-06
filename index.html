@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>RemFlow — Remediation Intelligence</title>
+<style>
+:root {
+  --bg-root: #060b18; --bg-surface: #0c1225; --bg-elevated: #111830;
+  --bg-hover: #182040; --bg-sidebar: #080e1c;
+  --border: #1a2540; --border-light: #243055;
+  --text-primary: #e8ecf4; --text-secondary: #8899bb; --text-muted: #556888;
+  --accent: #0066ff; --accent-dim: #0052cc; --accent-glow: rgba(0,102,255,0.25);
+  --critical: #ff4444; --critical-bg: #351520;
+  --high: #ff7722; --high-bg: #352215;
+  --medium: #e6b800; --medium-bg: #353015;
+  --low: #22cc66; --low-bg: #123020;
+  --radius-sm: 6px; --radius: 8px; --radius-lg: 12px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.4);
+  --sidebar-w: 240px; --topbar-h: 56px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "SF Mono", "Fira Code", Consolas, monospace;
+}
+[data-theme="light"] {
+  --bg-root: #f0f2f8; --bg-surface: #fff; --bg-elevated: #f5f7fc;
+  --bg-hover: #eef1f8; --bg-sidebar: #e8ecf4;
+  --border: #d8dde8; --border-light: #e8ecf4;
+  --text-primary: #0c1225; --text-secondary: #556888; --text-muted: #8899bb;
+  --accent: #0052cc; --accent-dim: #003d99;
+  --critical-bg: #fff0f0; --high-bg: #fff4ee; --medium-bg: #fffbe6; --low-bg: #eefff4;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--font);font-size:14px;color:var(--text-primary);background:var(--bg-root);line-height:1.5;-webkit-font-smoothing:antialiased;overflow:hidden}
+a{color:var(--accent);text-decoration:none}
+button{cursor:pointer;font-family:inherit}
+table{border-collapse:collapse;width:100%}
+th{text-align:left;font-weight:600;color:var(--text-secondary);font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+th,td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px}
+tr:hover td{background:var(--bg-hover)}
+.app{display:flex;height:100vh}
+.sidebar{width:var(--sidebar-w);background:var(--bg-sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;z-index:10;transition:width .2s}
+.sidebar.collapsed{width:56px}
+.sidebar-brand{padding:18px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);height:var(--topbar-h);flex-shrink:0}
+.sidebar-brand .logo{width:28px;height:28px;border-radius:var(--radius-sm);background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;flex-shrink:0;box-shadow:0 0 12px var(--accent-glow)}
+.sidebar-brand .title{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden}
+.sidebar.collapsed .title,.sidebar.collapsed .section-label,.sidebar.collapsed .nav-item span:not(.icon),.sidebar.collapsed .user-info,.sidebar.collapsed .sidebar-footer .user-info{display:none}
+.sidebar.collapsed .nav-item{justify-content:center;padding:10px}
+.sidebar-nav{padding:12px 10px;flex:1;display:flex;flex-direction:column;gap:2px}
+.section-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);padding:12px 12px 6px;white-space:nowrap;overflow:hidden}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-sm);color:var(--text-secondary);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:var(--bg-hover);color:var(--text-primary);text-decoration:none}
+.nav-item.active{background:var(--accent);color:#fff;box-shadow:0 0 10px var(--accent-glow)}
+.nav-item .icon{width:20px;text-align:center;flex-shrink:0;font-size:15px}
+.sidebar-footer{padding:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.sidebar-footer .avatar{width:28px;height:28px;border-radius:50%;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;flex-shrink:0}
+.sidebar-footer .user-name{font-weight:600}
+.sidebar-footer .user-role{color:var(--text-muted);font-size:11px}
+.sidebar.collapsed .sidebar-footer{justify-content:center}
+.sidebar.collapsed .sidebar-footer .user-info{display:none}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:var(--topbar-h);background:var(--bg-surface);border-bottom:1px solid var(--border);border-top:2px solid var(--accent);display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0}
+.topbar .hamburger{background:none;border:none;color:var(--text-secondary);font-size:18px;padding:4px;border-radius:var(--radius-sm)}
+.topbar .hamburger:hover{background:var(--bg-hover);color:var(--text-primary)}
+.topbar .page-title{font-size:18px;font-weight:700}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.topbar-info{color:var(--text-muted);font-size:12px}
+.theme-toggle,.tm-toggle{background:var(--bg-hover);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-secondary);padding:6px 10px;font-size:15px}
+.theme-toggle:hover,.tm-toggle:hover{color:var(--text-primary);border-color:var(--border-light)}
+.page{display:none;padding:24px;overflow-y:auto;flex:1}
+.page.active{display:block}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;transition:border-color .2s;cursor:pointer}
+.stat-card:hover{border-color:var(--accent)}
+.stat-card .stat-value{font-size:32px;font-weight:700;margin-bottom:4px}
+.stat-card .stat-label{font-size:13px;color:var(--text-secondary)}
+.stat-card .stat-sub{font-size:11px;color:var(--text-muted);margin-top:4px}
+.card{background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-bottom:16px}
+.card-title{font-size:14px;font-weight:600;margin-bottom:12px;color:var(--text-secondary)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.text-link{color:var(--accent);cursor:pointer}
+.text-link:hover{text-decoration:underline}
+.mono{font-family:var(--font-mono);font-size:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.badge-critical{background:var(--critical-bg);color:var(--critical)}
+.badge-high{background:var(--high-bg);color:var(--high)}
+.badge-medium{background:var(--medium-bg);color:var(--medium)}
+.badge-low{background:var(--low-bg);color:var(--low)}
+.badge-success{background:#123020;color:#22cc66}
+.badge-warning{background:#353015;color:#e6b800}
+.badge-info{background:#102830;color:#00aacc}
+.badge-pending{background:#352215;color:#ff7722}
+.btn{padding:8px 16px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-primary);font-size:13px;font-weight:500;transition:all .15s}
+.btn:hover{border-color:var(--accent);background:var(--bg-hover)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-dim)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-ghost{background:transparent;border-color:transparent}
+.btn-ghost:hover{background:var(--bg-hover);border-color:var(--border)}
+.btn-group{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.search-input{background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-primary);padding:8px 12px;font-size:13px;width:280px;font-family:inherit}
+.search-input:focus{outline:none;border-color:var(--accent)}
+.search-input::placeholder{color:var(--text-muted)}
+.filter-select{background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-primary);padding:7px 10px;font-size:12px;font-family:inherit;cursor:pointer}
+.filter-group{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.ml-auto{margin-left:auto}
+.mt-12{margin-top:12px}
+.mb-12{margin-bottom:12px}
+.flex{display:flex;align-items:center;gap:8px}
+.flex-wrap{flex-wrap:wrap}
+.gap-8{gap:8px}
+.chart-bar{display:flex;align-items:flex-end;gap:4px;height:120px;padding:8px 0}
+.chart-bar-item{flex:1;border-radius:var(--radius-sm) var(--radius-sm) 0 0;min-height:4px;position:relative;transition:height .3s}
+.chart-bar-item .chart-label{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--text-muted);white-space:nowrap}
+.progress-bar{height:8px;background:var(--bg-hover);border-radius:4px;overflow:hidden;margin:4px 0}
+.progress-fill{height:100%;border-radius:4px;transition:width .3s}
+.clickable{cursor:pointer}
+.clickable:hover td{background:var(--bg-hover)!important}
+@media(max-width:768px){
+  .sidebar{position:fixed;left:-240px;transition:left .2s;height:100vh;z-index:100}
+  .sidebar.open{left:0}
+  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99}
+  .sidebar-overlay.show{display:block}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .grid-2{grid-template-columns:1fr}
+  .search-input{width:100%}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+<div class="sidebar" id="sidebar">
+<div class="sidebar-brand">
+<div class="logo">⚡</div><span class="title">RemFlow</span>
+</div>
+<div class="sidebar-nav">
+<div class="section-label">Operations</div>
+<button class="nav-item active" onclick="navigateTo('dashboard')" data-page="dashboard"><span class="icon">📊</span><span>Dashboard</span></button>
+<button class="nav-item" onclick="navigateTo('findings')" data-page="findings"><span class="icon">🔍</span><span>Findings</span></button>
+<button class="nav-item" onclick="navigateTo('remediations')" data-page="remediations"><span class="icon">🛠️</span><span>Remediations</span></button>
+<button class="nav-item" onclick="navigateTo('deployments')" data-page="deployments"><span class="icon">📦</span><span>Deployments</span></button>
+<div class="section-label" style="margin-top:12px">Infrastructure</div>
+<button class="nav-item" onclick="navigateTo('assets')" data-page="assets"><span class="icon">🖥️</span><span>Assets</span></button>
+</div>
+<div class="sidebar-footer">
+<div class="avatar">DC</div>
+<div class="user-info"><div class="user-name">David Chiang</div><div class="user-role">Remediation Analyst</div></div>
+</div>
+</div>
+<div class="main">
+<div class="topbar">
+<button class="hamburger" onclick="toggleSidebar()">☰</button>
+<div class="page-title" id="pageTitle">Dashboard</div>
+<div class="topbar-right">
+<span class="topbar-info" id="syncTime"></span>
+<button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌓</button>
+</div>
+</div>
+
+<div class="page active" id="page-dashboard"></div>
+<div class="page" id="page-findings"></div>
+<div class="page" id="page-finding-detail"></div>
+<div class="page" id="page-create-remediation"></div>
+<div class="page" id="page-deploy-fix"></div>
+<div class="page" id="page-remediations"></div>
+<div class="page" id="page-remediation-detail"></div>
+<div class="page" id="page-deployments"></div>
+<div class="page" id="page-deployment-detail"></div>
+<div class="page" id="page-assets"></div>
+<div class="page" id="page-asset-detail"></div>
+
+</div></div>
+
+<script>
+const THEMES = ['dark','light']; let currentTheme = localStorage.getItem('remflow-theme')||'dark';
+document.documentElement.setAttribute('data-theme',currentTheme);
+function toggleTheme(){currentTheme=currentTheme==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',currentTheme);localStorage.setItem('remflow-theme',currentTheme)}
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('show')}
+function goBack(){history.back()}
+const SEVS=['Critical','High','Medium','Low'];
+const SEV_W={Critical:4,High:3,Medium:2,Low:1};
+const LOCS=['US-East (nyc1)','US-West (sfo1)','EU-Central (fra1)','APAC-Singapore','US-East (iad1)','EU-West (lhr1)'];
+const OSES=['Windows Server 2022','Windows Server 2019','Windows 11 Enterprise','Windows 10 Enterprise','RHEL 9.4','RHEL 8.10','Ubuntu 24.04 LTS','Ubuntu 22.04 LTS','macOS 15 Sequoia','macOS 14 Sonoma'];
+const STS=['Active','Fixed','Mitigated','False Positive','Risk Accepted'];
+const REM_STS=['Queued','In Progress','Completed','Failed','Rolled Back'];
+const HOSTS=['WEB-PROD-03','DC-PROD-01','DC-PROD-02','EXCH-PROD-01','EXCH-PROD-02','APP-PROD-07','APP-PROD-12','DB-PROD-02','DB-PROD-05','DNS-PROD-01','FW-PROD-01','NPS-PROD-01','K8S-PROD-03','K8S-PROD-07','CI-CD-01','CI-CD-02','MAC-ENG-14','MAC-ENG-22','MAC-EXEC-01','MAC-EXEC-05','SRV-DEV-07','SRV-DEV-12','SRV-STAG-03','CORP-WS7421','CORP-LT3512','CORP-LT3902','NYC-WS441','SFO-LT228','LON-WS115','FRA-VM033'];
+const CVE_IDS=['CVE-2026-12345','CVE-2026-11223','CVE-2026-09876','CVE-2026-04567','CVE-2026-33445','CVE-2026-42002','CVE-2026-44004','CVE-2026-25501','CVE-2026-29100','CVE-2026-38801','CVE-2026-17204','CVE-2026-22984','CVE-2026-36712','CVE-2026-40123','CVE-2026-18990','CVE-2026-30221','CVE-2026-21101','CVE-2026-52003'];
+const CVE_NAMES={'CVE-2026-12345':'Log Library Remote Code Execution','CVE-2026-11223':'Print Service Elevation of Privilege','CVE-2026-09876':'TLS Certificate Parsing Vulnerability','CVE-2026-04567':'OS Kernel Privilege Escalation','CVE-2026-33445':'Mail Server Remote Code Execution','CVE-2026-42002':'Browser Engine Remote Code Execution','CVE-2026-44004':'MDM API Authorization Bypass','CVE-2026-25501':'Hypervisor Server Remote Code Execution','CVE-2026-29100':'Network OS Web UI Auth Bypass','CVE-2026-38801':'Firewall OS Command Injection','CVE-2026-17204':'Graphics Driver Elevation of Privilege','CVE-2026-22984':'Database Agent Remote Code Execution','CVE-2026-36712':'Container Runtime Privilege Escalation','CVE-2026-40123':'Collaboration Platform Remote Code Execution','CVE-2026-18990':'SSH Server Remote Code Execution','CVE-2026-30221':'Video Conference Client EoP','CVE-2026-21101':'ITSM Platform Remote Code Execution','CVE-2026-52003':'Container Engine Privilege Escalation'};
+const KBS={'CVE-2026-12345':'SEC-2026-001','CVE-2026-11223':'SEC-2026-002','CVE-2026-09876':'SEC-2026-003','CVE-2026-04567':'SEC-2026-004','CVE-2026-33445':'SEC-2026-005','CVE-2026-42002':'SEC-2026-006','CVE-2026-44004':'SEC-2026-007','CVE-2026-25501':'SEC-2026-008','CVE-2026-29100':'SEC-2026-009','CVE-2026-38801':'SEC-2026-010','CVE-2026-17204':'SEC-2026-011','CVE-2026-22984':'SEC-2026-012','CVE-2026-36712':'SEC-2026-013','CVE-2026-40123':'SEC-2026-014','CVE-2026-18990':'SEC-2026-015','CVE-2026-30221':'SEC-2026-016','CVE-2026-21101':'SEC-2026-017','CVE-2026-52003':'SEC-2026-018'};
+const IP_MAP={};
+
+function pick(a){return a[Math.floor(Math.random()*a.length)]}
+function randInt(mn,mx){return Math.floor(Math.random()*(mx-mn))+mn}
+function ago(h){const d=new Date(Date.now()-h*3600000);return d.toISOString().slice(0,16).replace('T',' ')}
+function sevClass(s){return s.toLowerCase()}
+
+const assets = [];
+for(let i=0;i<HOSTS.length;i++){
+  const h=HOSTS[i]; const os=pick(OSES); const loc=pick(LOCS);
+  IP_MAP[h]='10.23.'+randInt(0,255)+'.'+randInt(1,254);
+  const findings=[];
+  const nf=randInt(2,7);
+  for(let f=0;f<nf;f++){
+    const cve=pick(CVE_IDS);
+    findings.push({
+      cve, name:CVE_NAMES[cve], severity:pick(SEVS),
+      kb:KBS[cve]||'n/a', status:pick(STS),
+      firstSeen:ago(randInt(48,720)), lastUpdated:ago(randInt(0,48)),
+      fixAvailable:Math.random()>0.15
+    });
+  }
+  assets.push({hostname:h,os,loc,ip:IP_MAP[h],findings,lastScan:ago(randInt(0,6))});
+}
+
+const remediations = [];
+for(let r=0;r<24;r++){
+  const cve=pick(CVE_IDS); const tgt=[]; const nc=randInt(3,12);
+  for(let t=0;t<nc;t++)tgt.push(pick(HOSTS));
+  const uni=[...new Set(tgt)];
+  const status=pick(REM_STS);
+  const created=ago(randInt(72,720));
+  const completed=status==='Completed'?ago(randInt(0,48)):'—';
+  remediations.push({
+    id:'RM-'+(1000+r), cve, name:CVE_NAMES[cve], kb:KBS[cve],
+    targets:uni, targetCount:uni.length, status, created, completed,
+    coverage:status==='Completed'?Math.round(90+Math.random()*10):status==='Failed'?Math.round(20+Math.random()*30):Math.round(40+Math.random()*50)
+  });
+}
+
+const deployments = [];
+for(let d=0;d<20;d++){
+  const st=pick(['Completed','In Progress','Failed','Rolled Back']);
+  deployments.push({
+    id:'DEP-'+(2000+d), package:'RemFlow-'+(3000+d),
+    type:pick(['Software Update Package','Application Deployment','Configuration Change','Registry Update']),
+    targetCount:randInt(5,30), successRate:st==='Completed'?randInt(92,100):st==='Failed'?randInt(20,50):randInt(60,90),
+    start:ago(randInt(1,168)), end:st==='Completed'||st==='Rolled Back'?ago(randInt(0,48)):'—',
+    status:st
+  });
+}
+
+function navigateTo(page, param){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  const navBtn=document.querySelector(`.nav-item[data-page="${page}"]`);
+  if(navBtn)navBtn.classList.add('active');
+  const titles={dashboard:'Dashboard',findings:'Findings',remediations:'Remediations',deployments:'Deployments',assets:'Assets','finding-detail':'CVE Detail','remediation-detail':'Remediation Detail','deployment-detail':'Deployment Detail','create-remediation':'Create Remediation','deploy-fix':'Deploy Fix','asset-detail':'Asset Detail'};
+  document.getElementById('pageTitle').textContent=titles[page]||page;
+  if(page==='dashboard')renderDashboard();
+  else if(page==='findings')renderFindings();
+  else if(page==='remediations')renderRemediations();
+  else if(page==='deployments')renderDeployments();
+  else if(page==='assets')renderAssets();
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('show');
+  document.getElementById('page-'+page).scrollTop=0;
+}
+
+function renderDashboard(){
+  const allF=assets.flatMap(a=>a.findings);
+  const total=allF.length;
+  const autoRem=allF.filter(f=>f.status==='Fixed').length;
+  const pending=allF.filter(f=>f.status==='Active').length;
+  const failed=allF.filter(f=>f.status==='False Positive'||f.status==='Risk Accepted').length;
+  const svCounts={Critical:0,High:0,Medium:0,Low:0};
+  allF.forEach(f=>svCounts[f.severity]++);
+  const cveCounts={};
+  allF.forEach(f=>{cveCounts[f.cve]=(cveCounts[f.cve]||0)+1});
+  const topCVE=Object.entries(cveCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const recentDeploy=deployments.slice(0,5);
+
+  let html=`
+<div class="stats-grid">
+  <div class="stat-card" onclick="navigateTo('findings')"><div class="stat-value" style="color:var(--accent)">${total}</div><div class="stat-label">Total Findings</div><div class="stat-sub">Across ${assets.length} assets</div></div>
+  <div class="stat-card" onclick="navigateTo('remediations')"><div class="stat-value" style="color:var(--low)">${autoRem}</div><div class="stat-label">Auto-Remediated</div><div class="stat-sub">${Math.round(autoRem/total*100)}% resolution rate</div></div>
+  <div class="stat-card" onclick="navigateTo('findings')"><div class="stat-value" style="color:var(--medium)">${pending}</div><div class="stat-label">Pending Review</div><div class="stat-sub">Awaiting triage</div></div>
+  <div class="stat-card" onclick="navigateTo('deployments')"><div class="stat-value" style="color:var(--critical)">${failed}</div><div class="stat-label">Failed / Excepted</div><div class="stat-sub">Manual intervention needed</div></div>
+  <div class="stat-card" onclick="navigateTo('remediations')"><div class="stat-value" style="color:var(--accent)">${Math.round(autoRem/total*100)}%</div><div class="stat-label">Auto-Remediation Rate</div><div class="stat-sub">Target: 85% — ${Math.max(0,85-Math.round(autoRem/total*100))}% gap</div></div>
+</div>
+<div class="grid-2">
+<div class="card">
+<div class="card-title">Severity Distribution</div>
+<div class="chart-bar" style="margin-bottom:20px">`;
+  const maxCount=Math.max(...Object.values(svCounts),1);
+  for(const [sev,cnt] of Object.entries(svCounts)){
+    const pct=cnt/maxCount*100;
+    const h=Math.max(4,pct*1.2);
+    html+=`<div class="chart-bar-item" style="height:${h}px;background:var(--${sev.toLowerCase()})"><div class="chart-label">${sev}<br>${cnt}</div></div>`;
+  }
+  html+=`</div></div>
+<div class="card">
+<div class="card-title">Top CVEs by Volume</div>
+<table><tr><th>CVE</th><th>Affected</th><th>Status</th></tr>`;
+  for(const [cve,cnt] of topCVE){
+    html+=`<tr class="clickable" onclick="viewFinding('${cve}')"><td class="mono text-link">${cve}</td><td>${cnt} endpoints</td><td>${CVE_NAMES[cve].substring(0,30)}...</td></tr>`;
+  }
+  html+=`</table></div></div>
+<div class="card">
+<div class="card-title">Recent Deployments</div>
+<table><tr><th>Deployment</th><th>Package</th><th>Coverage</th><th>Status</th></tr>`;
+  for(const d of recentDeploy){
+    html+=`<tr class="clickable" onclick="navigateTo('deployments')"><td class="mono">${d.id}</td><td>${d.package}</td><td>${d.successRate}%</td><td><span class="badge badge-${d.status==='Completed'?'success':d.status==='Failed'?'critical':d.status==='In Progress'?'warning':'medium'}">${d.status}</span></td></tr>`;
+  }
+  html+=`</table></div>`;
+
+  // Activity Feed card
+  const activityItems=[];
+  // From deployments
+  for(const d of deployments){
+    const h=randInt(1,168);
+    const icon=d.status==='Completed'?'🟢':d.status==='Failed'?'🔴':d.status==='Rolled Back'?'🔴':'🟡';
+    activityItems.push({
+      icon, h,
+      desc:`Deployment ${d.id} ${d.status==='Completed'?'completed':d.status==='Failed'?'failed':d.status==='Rolled Back'?'rolled back':'in progress'} — ${d.successRate}% success rate on ${d.targetCount} assets`,
+      nav:"navigateTo('deployments')", ts:d.start
+    });
+  }
+  // From remediations
+  for(const r of remediations){
+    const h=randInt(1,336);
+    const icon=r.status==='Completed'?'🟢':r.status==='Failed'?'🔴':r.status==='In Progress'?'🟡':'ℹ️';
+    activityItems.push({
+      icon, h,
+      desc:`Remediation ${r.id} ${r.status.toLowerCase()} — ${r.coverage}% coverage across ${r.targetCount} assets (${r.cve})`,
+      nav:`navigateTo('remediations')`, ts:r.created
+    });
+  }
+  // Sort by recency (reverse iteration of the generated order preserves timestamp ordering)
+  const sorted=activityItems.sort((a,b)=>b.h-a.h).slice(0,10);
+  html+=`<div class="card">
+<div class="card-header"><h3>🔔 Recent Activity</h3></div>
+<div class="card-body" id="activity-feed">`;
+  for(const a of sorted){
+    const rel=a.h<1?'just now':a.h<24?a.h+'h ago':Math.floor(a.h/24)+'d ago';
+    html+=`<div class="activity-item" onclick="${a.nav}" style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
+      <span style="font-size:18px">${a.icon}</span>
+      <div style="flex:1">
+        <div style="font-size:13px">${a.desc}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${rel}</div>
+      </div>
+      <span style="color:var(--text-muted);font-size:11px">${a.ts}</span>
+    </div>`;
+  }
+  html+=`</div></div>`;
+
+  document.getElementById('page-dashboard').innerHTML=html;
+}
+
+function renderFindings(){
+  const allF=assets.flatMap(a=>a.findings.map(f=>({...f,hostname:a.hostname,loc:a.loc})));
+  let html=`
+<div class="filter-group">
+  <input class="search-input" id="find-search" placeholder="Search CVE or asset..." oninput="renderFindingsTable()">
+  <select class="filter-select" id="find-sev" onchange="renderFindingsTable()"><option value="all">All Severities</option>${SEVS.map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
+  <select class="filter-select" id="find-status" onchange="renderFindingsTable()"><option value="all">All Statuses</option>${STS.map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
+  <span class="ml-auto" style="font-size:12px;color:var(--text-muted)">${allF.length} total findings</span>
+</div>
+<div class="btn-group">
+  <button class="btn btn-sm btn-primary" onclick="showToast('Select a CVE to create remediation from')">Create Remediation</button>
+  <button class="btn btn-sm" onclick="exportCSV()">📥 Export CSV</button>
+</div>
+<div style="overflow-x:auto"><table id="findings-table">
+<tr><th>CVE</th><th>Plugin / Name</th><th>Severity</th><th>Asset</th><th>Location</th><th>Fix</th><th>Status</th></tr>
+<tbody id="findings-tbody"></tbody></table></div>`;
+  document.getElementById('page-findings').innerHTML=html;
+  window.__allFindings=allF;
+  renderFindingsTable();
+}
+
+function renderFindingsTable(){
+  const q=document.getElementById('find-search')?.value?.toLowerCase()||'';
+  const sv=document.getElementById('find-sev')?.value||'all';
+  const st=document.getElementById('find-status')?.value||'all';
+  const all=window.__allFindings||[];
+  const filtered=all.filter(f=>{
+    if(sv!=='all'&&f.severity!==sv)return false;
+    if(st!=='all'&&f.status!==st)return false;
+    if(q&&!f.cve.toLowerCase().includes(q)&&!f.hostname.toLowerCase().includes(q)&&!f.name.toLowerCase().includes(q))return false;
+    return true;
+  });
+  let rows=filtered.map(f=>`<tr class="clickable" onclick="viewFinding('${f.cve}')"><td class="mono text-link">${f.cve}</td><td>${f.name.substring(0,35)}</td><td><span class="badge badge-${sevClass(f.severity)}">${f.severity}</span></td><td class="mono">${f.hostname}</td><td style="font-size:12px;color:var(--text-muted)">${f.loc?f.loc:'—'}</td><td>${f.fixAvailable?'<span style="color:var(--low)">✓</span>':'<span style="color:var(--muted)">—</span>'}</td><td>${statusBadge(f.status)}</td></tr>`).join('');
+  document.getElementById('findings-tbody').innerHTML=rows||`<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">No findings match your filters</td></tr>`;
+}
+
+function viewFinding(cveId){
+  const allF=assets.flatMap(a=>a.findings.map(f=>({...f,hostname:a.hostname,loc:a.loc,os:a.os,ip:a.ip})));
+  const aff=allF.filter(f=>f.cve===cveId);
+  const info=aff[0];
+  if(!info)return;
+  const sevMap={};
+  aff.forEach(f=>sevMap[f.hostname]=f.status);
+  let html=`
+<button class="btn btn-sm btn-ghost" onclick="navigateTo('findings')">← Back to Findings</button>
+<div class="card" style="margin-top:12px">
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+  <h2 style="font-size:20px">${cveId}</h2>
+  <span class="badge badge-${sevClass(info.severity)}">${info.severity}</span>
+  <span style="margin-left:auto;font-size:12px;color:var(--text-muted)">CVSS: ${(6+Math.random()*4).toFixed(1)}</span>
+</div>
+<p style="color:var(--text-secondary);margin-bottom:16px">${info.name}</p>
+<p style="color:var(--text-muted);font-size:13px;margin-bottom:16px">${info.name}. ${cveId} affects ${aff.length} assets. ${info.fixAvailable?'A fix is available: '+(KBS[cveId]||'See vendor advisory')+'.':'No fix currently available.'}</p>
+<div class="flex" style="margin-bottom:16px;gap:8px">
+  <button class="btn btn-sm btn-primary" onclick="showCreateRemediation('${cveId}')">Create Remediation</button>
+  <button class="btn btn-sm" onclick="showDeployFix('${cveId}')">Deploy Fix</button>
+</div>
+</div>
+<div class="card">
+<div class="card-title">Affected Assets</div>
+<div style="overflow-x:auto"><table>
+<tr><th>Asset</th><th>IP</th><th>OS</th><th>Location</th><th>Status</th></tr>`;
+  aff.forEach(f=>html+=`<tr class="clickable" onclick="viewAsset('${f.hostname}')"><td class="mono text-link">${f.hostname}</td><td class="mono">${f.ip}</td><td>${f.os||'—'}</td><td style="font-size:12px;color:var(--text-muted)">${f.loc||'—'}</td><td>${statusBadge(f.status)}</td></tr>`);
+  html+=`</table></div></div>
+<div class="card">
+<div class="card-title">Remediation Availability</div>
+<table><tr><th>Patch / Fix</th><th>Type</th><th>Status</th><th>Deployable</th></tr>
+<tr><td class="mono">${KBS[cveId]||'Pending'}</td><td>${info.fixAvailable?'Security Update':'Vendor Advisory'}</td><td>${info.fixAvailable?'Released':'In Review'}</td><td>${info.fixAvailable?'<span style="color:var(--low)">✓ Ready</span>':'<span style="color:var(--medium)">⏳ Pending</span>'}</td></tr>
+</table></div>`;
+  document.getElementById('page-finding-detail').innerHTML=html;
+  navigateTo('finding-detail');
+}
+
+function renderRemediations(){
+  let html=`
+<div class="filter-group">
+  <input class="search-input" id="rem-search" placeholder="Search CVE or ID..." oninput="renderRemTable()">
+  <select class="filter-select" id="rem-status" onchange="renderRemTable()"><option value="all">All Statuses</option>${REM_STS.map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
+  <span class="ml-auto" style="font-size:12px;color:var(--text-muted)">${remediations.length} remediations</span>
+</div>
+<button class="btn btn-sm" onclick="exportCSV()">📥 Export CSV</button>
+<div style="overflow-x:auto;margin-top:12px"><table id="rem-table">
+<tr><th>ID</th><th>CVE</th><th>Package</th><th>Targets</th><th>Coverage</th><th>Created</th><th>Status</th></tr>
+<tbody id="rem-tbody"></tbody></table></div>`;
+  document.getElementById('page-remediations').innerHTML=html;
+  window.__allRems=remediations;
+  renderRemTable();
+}
+
+function renderRemTable(){
+  const q=document.getElementById('rem-search')?.value?.toLowerCase()||'';
+  const st=document.getElementById('rem-status')?.value||'all';
+  const all=window.__allRems||[];
+  const filtered=all.filter(r=>{
+    if(st!=='all'&&r.status!==st)return false;
+    return !q||r.cve.toLowerCase().includes(q)||r.id.toLowerCase().includes(q);
+  });
+  let rows=filtered.map(r=>`<tr class="clickable" onclick="viewRemediation('${r.id}')"><td class="mono text-link">${r.id}</td><td class="mono">${r.cve}</td><td>${r.kb||'—'}</td><td>${r.targetCount}</td><td><div class="progress-bar" style="width:80px;display:inline-block;vertical-align:middle"><div class="progress-fill" style="width:${r.coverage}%;background:${r.coverage>80?'var(--low)':r.coverage>50?'var(--medium)':'var(--critical)'}"></div></div> <span style="font-size:11px">${r.coverage}%</span></td><td style="font-size:12px;color:var(--text-muted)">${r.created}</td><td>${statusBadge(r.status)}</td></tr>`).join('');
+  document.getElementById('rem-tbody').innerHTML=rows||'<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">No remediations match</td></tr>';
+}
+
+function viewRemediation(id){
+  const r=remediations.find(x=>x.id===id);
+  if(!r)return;
+  let html=`
+<button class="btn btn-sm btn-ghost" onclick="navigateTo('remediations')">← Back to Remediations</button>
+<div class="card" style="margin-top:12px">
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+  <h2 style="font-size:18px">${r.id}</h2>
+  <span class="badge badge-${sevClass(r.status==='Completed'?'success':r.status==='Failed'?'critical':r.status==='In Progress'?'warning':'medium')}">${r.status}</span>
+</div>
+<div class="grid-2" style="margin-bottom:12px">
+  <div><span style="color:var(--text-muted);font-size:12px">CVE</span><br><span class="mono text-link" onclick="viewFinding('${r.cve}')">${r.cve}</span></div>
+  <div><span style="color:var(--text-muted);font-size:12px">Package</span><br><span class="mono">${r.kb||'—'}</span></div>
+  <div><span style="color:var(--text-muted);font-size:12px">Target Count</span><br>${r.targetCount} assets</div>
+  <div><span style="color:var(--text-muted);font-size:12px">Coverage</span><br>${r.coverage}%</div>
+  <div><span style="color:var(--text-muted);font-size:12px">Created</span><br>${r.created}</div>
+  <div><span style="color:var(--text-muted);font-size:12px">Completed</span><br>${r.completed}</div>
+</div>
+<div class="btn-group"><button class="btn btn-sm btn-primary" onclick="showToast('Rollback initiated for ${r.id}')">🔄 Rollback</button><button class="btn btn-sm" onclick="showToast('Generating report for ${r.id}...')">📄 View Report</button></div>
+</div>
+<div class="card">
+<div class="card-title">Deployment Progress</div>
+<div style="overflow-x:auto"><table>
+<tr><th>Asset</th><th>Status</th><th>Message</th><th>Timestamp</th></tr>`;
+  for(let t=0;t<Math.min(r.targets.length,15);t++){
+    const st=r.status==='Completed'?'Success':r.status==='Failed'?pick(['Failed','Timeout']):pick(['Pending','In Progress']);
+    html+=`<tr class="clickable" onclick="viewAsset('${r.targets[t]}')"><td class="mono text-link">${r.targets[t]}</td><td>${statusBadge(st)}</td><td style="font-size:12px;color:var(--text-muted)">${st==='Success'?'Patch applied successfully':st==='Failed'?'Deployment failed - retrying':st==='Timeout'?'Agent unreachable':'Waiting in queue'}</td><td style="font-size:12px;color:var(--text-muted)">${r.completed!=='—'?r.completed:ago(randInt(0,2))}</td></tr>`;
+  }
+  if(r.targets.length>15)html+=`<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">...and ${r.targets.length-15} more assets</td></tr>`;
+  html+=`</table></div></div>`;
+  document.getElementById('page-remediation-detail').innerHTML=html;
+  navigateTo('remediation-detail');
+}
+
+function renderDeployments(){
+  let html=`
+<div class="filter-group">
+  <input class="search-input" id="dep-search" placeholder="Search deployments..." oninput="renderDepTable()">
+  <select class="filter-select" id="dep-status" onchange="renderDepTable()"><option value="all">All Statuses</option><option value="Completed">Completed</option><option value="In Progress">In Progress</option><option value="Failed">Failed</option><option value="Rolled Back">Rolled Back</option></select>
+</div>
+<button class="btn btn-sm" onclick="exportCSV()">📥 Export CSV</button>
+<div style="overflow-x:auto;margin-top:12px"><table id="dep-table">
+<tr><th>Deployment ID</th><th>Package</th><th>Type</th><th>Targets</th><th>Success %</th><th>Start</th><th>Status</th></tr>
+<tbody id="dep-tbody"></tbody></table></div>`;
+  document.getElementById('page-deployments').innerHTML=html;
+  window.__allDeps=deployments;
+  renderDepTable();
+}
+
+function renderDepTable(){
+  const q=document.getElementById('dep-search')?.value?.toLowerCase()||'';
+  const st=document.getElementById('dep-status')?.value||'all';
+  const all=window.__allDeps||[];
+  const filtered=all.filter(d=>{
+    if(st!=='all'&&d.status!==st)return false;
+    return !q||d.id.toLowerCase().includes(q)||d.package.toLowerCase().includes(q);
+  });
+  let rows=filtered.map(d=>`<tr class="clickable" onclick="viewDeployment('${d.id}')"><td class="mono text-link">${d.id}</td><td>${d.package}</td><td style="font-size:12px">${d.type}</td><td>${d.targetCount}</td><td><span style="color:${d.successRate>=90?'var(--low)':d.successRate>=60?'var(--medium)':'var(--critical)'}">${d.successRate}%</span></td><td style="font-size:12px;color:var(--text-muted)">${d.start}</td><td>${statusBadge(d.status)}</td></tr>`).join('');
+  document.getElementById('dep-tbody').innerHTML=rows||'<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">No deployments match</td></tr>';
+}
+
+function viewDeployment(id){
+  const d=deployments.find(x=>x.id===id);
+  if(!d)return;
+  // Generate per-asset detail
+  const assetDetails=[];
+  const HOSTS_COPY=[...HOSTS];
+  for(let i=0;i<d.targetCount;i++){
+    const h=HOSTS_COPY[i % HOSTS_COPY.length];
+    const os=OSES[i % OSES.length];
+    const loc=LOCS[i % LOCS.length];
+    const st=d.status==='Completed'?pick(['Success','Success','Success','Success','Success','Success','Success','Success','Success','Failed']):
+              d.status==='Failed'?pick(['Failed','Failed','Failed','Failed','Failed','Failed','Failed','Failed','Timeout','Pending']):
+              d.status==='Rolled Back'?pick(['Success','Success','Rolled Back','Rolled Back','Failed']):
+              pick(['Pending','In Progress','In Progress','In Progress','Queued']);
+    const ts=d.status==='Completed'?ago(randInt(0,12)):
+              d.status==='In Progress'?'Running':
+              d.status==='Queued'?'—':ago(randInt(0,24));
+    assetDetails.push({hostname:h,os,loc,status:st,timestamp:ts,message:statusMsg(st)});
+  }
+
+  function statusMsg(s){
+    const msgs={
+      'Success':'Patch applied successfully',
+      'Failed':'Deployment failed — check agent log',
+      'Timeout':'Agent unreachable after 3 retries',
+      'Pending':'Waiting in deployment queue',
+      'In Progress':'Patch is being applied',
+      'Queued':'Scheduled for deployment',
+      'Rolled Back':'Change reverted successfully'
+    };
+    return msgs[s]||'Unknown state';
+  }
+
+  let html=`
+<button class="btn btn-sm btn-ghost" onclick="navigateTo('deployments')">← Back to Deployments</button>
+<div class="card" style="margin-top:12px">
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+  <h2 style="font-size:18px">${d.id}</h2>
+  <span class="badge badge-${d.status==='Completed'?'success':d.status==='Failed'?'critical':d.status==='In Progress'?'warning':'medium'}">${d.status}</span>
+  <span style="margin-left:auto;font-size:12px;color:var(--text-muted)">Package: ${d.package}</span>
+</div>
+<div class="grid-2" style="margin-bottom:12px">
+  <div><span style="color:var(--text-muted);font-size:12px">Package</span><br><span class="mono">${d.package}</span></div>
+  <div><span style="color:var(--text-muted);font-size:12px">Type</span><br>${d.type}</div>
+  <div><span style="color:var(--text-muted);font-size:12px">Target Count</span><br>${d.targetCount} assets</div>
+  <div><span style="color:var(--text-muted);font-size:12px">Success Rate</span><br><span style="color:${d.successRate>=90?'var(--low)':d.successRate>=60?'var(--medium)':'var(--critical)'};font-weight:700">${d.successRate}%</span></div>
+  <div><span style="color:var(--text-muted);font-size:12px">Started</span><br>${d.start}</div>
+  <div><span style="color:var(--text-muted);font-size:12px">Completed</span><br>${d.end}</div>
+</div>
+<div class="btn-group">
+  <button class="btn btn-sm btn-primary" onclick="showToast('Rollback initiated for ${d.id}')">🔄 Rollback</button>
+  <button class="btn btn-sm" onclick="showToast('Generating deployment report...')">📄 View Report</button>
+  <button class="btn btn-sm" onclick="showToast('Redeploying ${d.id}...')">↻ Redeploy</button>
+</div>
+</div>
+<div class="card">
+<div class="card-title">Deployment Progress by Asset</div>
+<div style="overflow-x:auto"><table>
+<tr><th>Hostname</th><th>OS</th><th>Location</th><th>Status</th><th>Message</th><th>Timestamp</th></tr>
+<tbody id="dep-detail-tbody"></tbody></table></div></div>`;
+  document.getElementById('page-deployment-detail').innerHTML=html;
+  // Render asset table
+  let rows=assetDetails.map(a=>`<tr><td class="mono text-link" onclick="viewAsset('${a.hostname}')">${a.hostname}</td><td style="font-size:12px">${a.os}</td><td style="font-size:12px;color:var(--text-muted)">${a.loc}</td><td>${statusBadge(a.status)}</td><td style="font-size:12px;color:var(--text-muted)">${a.message}</td><td style="font-size:12px;color:var(--text-muted)">${a.timestamp}</td></tr>`).join('');
+  document.getElementById('dep-detail-tbody').innerHTML=rows;
+  navigateTo('deployment-detail');
+}
+
+function renderAssets(){
+  let html=`
+<div class="filter-group">
+  <input class="search-input" id="asset-search" placeholder="Search hostname, OS, or location..." oninput="renderAssetTable()">
+  <select class="filter-select" id="asset-os" onchange="renderAssetTable()"><option value="all">All OS</option><option value="Windows">Windows</option><option value="Linux">Linux</option><option value="macOS">macOS</option></select>
+</div>
+<div style="overflow-x:auto"><table id="asset-table">
+<tr><th>Hostname</th><th>OS</th><th>Location</th><th>Open</th><th>Remediated</th><th>Last Scan</th></tr>
+<tbody id="asset-tbody"></tbody></table></div>`;
+  document.getElementById('page-assets').innerHTML=html;
+  window.__allAssets=assets;
+  renderAssetTable();
+}
+
+function renderAssetTable(){
+  const q=document.getElementById('asset-search')?.value?.toLowerCase()||'';
+  const osF=document.getElementById('asset-os')?.value||'all';
+  const all=window.__allAssets||[];
+  const filtered=all.filter(a=>{
+    if(osF!=='all'){
+      const f=a.os.startsWith('Windows')?'Windows':a.os.startsWith('macOS')||a.os.includes('macOS')?'macOS':'Linux';
+      if(f!==osF)return false;
+    }
+    return !q||a.hostname.toLowerCase().includes(q)||a.os.toLowerCase().includes(q)||a.loc.toLowerCase().includes(q);
+  });
+  let rows=filtered.map(a=>{
+    const open=a.findings.filter(f=>f.status==='Active'||f.status==='Mitigated').length;
+    const fixed=a.findings.filter(f=>f.status==='Fixed').length;
+    return `<tr class="clickable" onclick="viewAsset('${a.hostname}')"><td class="mono text-link">${a.hostname}</td><td style="font-size:12px">${a.os}</td><td style="font-size:12px;color:var(--text-muted)">${a.loc}</td><td style="color:${open>0?'var(--critical)':'var(--low)'}">${open}</td><td style="color:var(--low)">${fixed}</td><td style="font-size:12px;color:var(--text-muted)">${a.lastScan}</td></tr>`;
+  }).join('');
+  document.getElementById('asset-tbody').innerHTML=rows||'<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">No assets match</td></tr>';
+}
+
+function viewAsset(hostname){
+  const a=assets.find(x=>x.hostname===hostname);
+  if(!a)return;
+  const open=a.findings.filter(f=>f.status==='Active'||f.status==='Mitigated').length;
+  const fixed=a.findings.filter(f=>f.status==='Fixed').length;
+  const sevMap={Critical:0,High:0,Medium:0,Low:0};
+  a.findings.forEach(f=>sevMap[f.severity]++);
+  let html=`
+<button class="btn btn-sm btn-ghost" onclick="navigateTo('assets')">← Back to Assets</button>
+<div class="card" style="margin-top:12px">
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+  <h2 style="font-size:18px">${a.hostname}</h2>
+  <span style="font-size:12px;color:var(--text-muted)">${a.ip}</span>
+  <span style="margin-left:auto;font-size:12px;color:var(--text-muted)">Last scan: ${a.lastScan}</span>
+</div>
+<div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+  <div class="stat-card"><div class="stat-value" style="color:${open>0?'var(--critical)':'var(--low)'}">${open}</div><div class="stat-label">Open Findings</div></div>
+  <div class="stat-card"><div class="stat-value" style="color:var(--low)">${fixed}</div><div class="stat-label">Remediated</div></div>
+  <div class="stat-card"><div class="stat-value" style="color:var(--accent)">${a.findings.length}</div><div class="stat-label">Total Checks</div></div>
+</div>
+<div class="grid-2" style="margin-top:12px">
+  <div class="card"><div class="card-title">System Info</div>
+    <table>
+      <tr><td style="color:var(--text-muted);padding:6px 0">OS</td><td style="padding:6px 0">${a.os}</td></tr>
+      <tr><td style="color:var(--text-muted);padding:6px 0">Location</td><td style="padding:6px 0">${a.loc}</td></tr>
+      <tr><td style="color:var(--text-muted);padding:6px 0">IP</td><td class="mono" style="padding:6px 0">${a.ip}</td></tr>
+    </table>
+  </div>
+  <div class="card"><div class="card-title">Severity Breakdown</div>
+    <div class="chart-bar" style="height:80px">${['Critical','High','Medium','Low'].map(s=>{
+      const cnt=sevMap[s]||0; const max=Math.max(...Object.values(sevMap),1);
+      return `<div class="chart-bar-item" style="height:${Math.max(4,cnt/max*80)}px;background:var(--${s.toLowerCase()})"><div class="chart-label">${s}<br>${cnt}</div></div>`;
+    }).join('')}</div>
+  </div>
+</div>
+</div>
+<div class="card">
+<div class="card-title">Findings on ${a.hostname}</div>
+<div style="overflow-x:auto"><table>
+<tr><th>CVE</th><th>Name</th><th>Severity</th><th>Status</th><th>Fix</th><th>First Seen</th></tr>
+${a.findings.map(f=>`<tr class="clickable" onclick="viewFinding('${f.cve}')"><td class="mono text-link">${f.cve}</td><td style="font-size:12px">${f.name}</td><td><span class="badge badge-${sevClass(f.severity)}">${f.severity}</span></td><td>${statusBadge(f.status)}</td><td>${f.fixAvailable?'<span style="color:var(--low)">✓</span>':'—'}</td><td style="font-size:12px;color:var(--text-muted)">${f.firstSeen}</td></tr>`).join('')}
+</table></div></div>`;
+  document.getElementById('page-asset-detail').innerHTML=html;
+  navigateTo('asset-detail');
+}
+
+function showCreateRemediation(cveId){
+  const allF=assets.flatMap(a=>a.findings.map(f=>({...f,hostname:a.hostname}))).filter(f=>f.cve===cveId);
+  const info=allF[0];
+  const targets=[...new Set(allF.map(f=>f.hostname))];
+  const remId='RM-'+(1000+remediations.length+1);
+  let html=`
+<button class="btn btn-sm btn-ghost" onclick="navigateTo('finding-detail')">← Back to CVE Detail</button>
+<div class="card" style="margin-top:12px">
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+  <h2 style="font-size:20px">Create Remediation</h2>
+  <span class="badge badge-info">New</span>
+</div>
+<div class="grid-2" style="margin-bottom:12px">
+  <div><span style="color:var(--text-muted);font-size:12px">CVE</span><br><span class="mono text-link" onclick="viewFinding('${cveId}')">${cveId}</span></div>
+  <div><span style="color:var(--text-muted);font-size:12px">Name</span><br>${info?info.name:'—'}</div>
+  <div><span style="color:var(--text-muted);font-size:12px">Affected Assets</span><br>${targets.length}</div>
+  <div><span style="color:var(--text-muted);font-size:12px">Fix Available</span><br>${info&&info.fixAvailable?'<span style="color:var(--low)">✓ Yes</span>':'<span style="color:var(--medium)">⏳ Pending</span>'}</div>
+</div>
+<div class="card" style="margin-bottom:16px">
+<div class="card-title">Remediation Plan</div>
+<table><tr><th style="width:140px">Field</th><th>Value</th></tr>
+<tr><td style="color:var(--text-muted)">Remediation ID</td><td class="mono">${remId}</td></tr>
+<tr><td style="color:var(--text-muted)">Scope</td><td>${targets.length} assets across ${[...new Set(allF.map(f=>f.loc))].length} locations</td></tr>
+<tr><td style="color:var(--text-muted)">Package</td><td class="mono">${KBS[cveId]||'SEC-' + cveId.replace('CVE-','')}</td></tr>
+<tr><td style="color:var(--text-muted)">Deployment Method</td><td>Software Update Package</td></tr>
+<tr><td style="color:var(--text-muted)">Target Completion</td><td>${ago(72)}</td></tr>
+</table>
+</div>
+<div class="card">
+<div class="card-title">Affected Assets (${targets.length})</div>
+<div style="max-height:200px;overflow-y:auto"><table>
+<tr><th>Hostname</th><th>Status</th></tr>
+${targets.map(h=>`<tr><td class="mono text-link" onclick="viewAsset('${h}')">${h}</td><td>${statusBadge(pick(['Active','Active','Active','Active','Mitigated']))}</td></tr>`).join('')}
+</table></div></div>
+<div class="flex" style="margin-top:16px;gap:8px">
+  <button class="btn btn-primary" onclick="showToast('Remediation ${remId} created!')">✓ Create Remediation</button>
+  <button class="btn" onclick="showToast('Scheduling deployment...')">Schedule Deployment</button>
+  <button class="btn" onclick="navigateTo('deploy-fix')">Deploy Now</button>
+</div>
+</div>`;
+  document.getElementById('page-create-remediation').innerHTML=html;
+  navigateTo('create-remediation');
+}
+
+function showDeployFix(cveId){
+  const allF=assets.flatMap(a=>a.findings.map(f=>({...f,hostname:a.hostname,os:a.os,loc:a.loc}))).filter(f=>f.cve===cveId);
+  const info=allF[0];
+  const targets=[...new Set(allF.map(f=>f.hostname))];
+  const depId='DEP-'+(2000+deployments.length+1);
+  const groups=[{label:'All Targets',count:targets.length},{label:'Windows',count:targets.filter(h=>{const a=assets.find(x=>x.hostname===h);return a&&a.os.startsWith('Windows')}).length},{label:'Linux',count:targets.filter(h=>{const a=assets.find(x=>x.hostname===h);return a&&(a.os.startsWith('RHEL')||a.os.startsWith('Ubuntu'))}).length},{label:'macOS',count:targets.filter(h=>{const a=assets.find(x=>x.hostname===h);return a&&a.os.startsWith('macOS')}).length}];
+  let html=`
+<button class="btn btn-sm btn-ghost" onclick="navigateTo('finding-detail')">← Back to CVE Detail</button>
+<div class="card" style="margin-top:12px">
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+  <h2 style="font-size:20px">Deploy Fix</h2>
+  <span class="badge badge-warning">In Progress</span>
+</div>
+<div class="grid-2" style="margin-bottom:12px">
+  <div><span style="color:var(--text-muted);font-size:12px">CVE</span><br><span class="mono text-link" onclick="viewFinding('${cveId}')">${cveId}</span></div>
+  <div><span style="color:var(--text-muted);font-size:12px">Package</span><br><span class="mono">${KBS[cveId]||'SEC-' + cveId.replace('CVE-','')}</span></div>
+  <div><span style="color:var(--text-muted);font-size:12px">Deployment ID</span><br><span class="mono">${depId}</span></div>
+  <div><span style="color:var(--text-muted);font-size:12px">Method</span><br>Software Update Package</div>
+</div>
+<div class="card" style="margin-bottom:16px">
+<div class="card-title">Deployment Scope</div>
+<div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+${groups.map(g=>`<div class="stat-card"><div class="stat-value" style="font-size:24px;color:var(--accent)">${g.count}</div><div class="stat-label">${g.label}</div></div>`).join('')}
+</div></div>
+<div class="card">
+<div class="card-title">Target Assets</div>
+<div style="max-height:200px;overflow-y:auto"><table>
+<tr><th>Hostname</th><th>OS</th><th>Location</th></tr>
+${allF.filter((f,i,a)=>a.findIndex(x=>x.hostname===f.hostname)===i).map(f=>`<tr class="clickable" onclick="viewAsset('${f.hostname}')"><td class="mono text-link">${f.hostname}</td><td style="font-size:12px">${f.os||'—'}</td><td style="font-size:12px;color:var(--text-muted)">${f.loc||'—'}</td></tr>`).join('')}
+</table></div></div>
+<div class="flex" style="margin-top:16px;gap:8px">
+  <button class="btn btn-primary" onclick="showDeployModal('${depId}',${targets.length},[${targets.map(h=>`'${h}'`).join(',')}])">🚀 Start Deployment</button>
+  <button class="btn" onclick="showToast('Deployment scheduled')">📅 Schedule</button>
+  <button class="btn" onclick="showToast('Previewing deployment...')">👁️ Preview</button>
+</div>
+</div>`;
+  document.getElementById('page-deploy-fix').innerHTML=html;
+  navigateTo('deploy-fix');
+}
+
+function showDeployModal(depId,targetCount,targets){
+  // Create overlay
+  const overlay=document.createElement('div');
+  overlay.id='deploy-modal-overlay';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9998;display:flex;align-items:center;justify-content:center';
+  // Create modal
+  const modal=document.createElement('div');
+  modal.id='deploy-modal';
+  modal.style.cssText='background:var(--bg-elevated,#111830);border:1px solid var(--border,#1a2540);border-radius:12px;padding:32px;width:520px;max-width:90vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.5)';
+  modal.innerHTML=`
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:20px;font-weight:700;color:var(--text-primary,#e8ecf4);margin-bottom:8px">Preparing Remediation Plan for ${targetCount} assets</div>
+      <div style="font-size:13px;color:var(--text-secondary,#8899bb)">${depId} — Ready for deployment tool</div>
+    </div>
+    <div style="margin-bottom:24px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted,#556888);margin-bottom:6px">
+        <span id="deploy-progress-label">0%</span>
+        <span id="deploy-status-label">Starting...</span>
+      </div>
+      <div style="width:100%;height:10px;background:var(--bg-hover,#182040);border-radius:5px;overflow:hidden">
+        <div id="deploy-progress-bar" style="width:0%;height:100%;background:var(--accent,#0066ff);border-radius:5px;transition:width 0.3s ease"></div>
+      </div>
+    </div>
+    <div id="deploy-asset-list" style="margin-bottom:20px">
+    </div>
+    <div style="text-align:center">
+      <button id="deploy-done-btn" style="display:none;padding:10px 28px;border-radius:8px;border:1px solid var(--accent,#0066ff);background:var(--accent,#0066ff);color:#fff;font-size:14px;font-weight:600;cursor:pointer">Done</button>
+    </div>
+  `;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  // Close on overlay click (not modal click)
+  overlay.addEventListener('click',function(e){if(e.target===overlay&&document.getElementById('deploy-done-btn').style.display!=='none') overlay.remove();});
+  // Animate progress bar
+  const bar=document.getElementById('deploy-progress-bar');
+  const label=document.getElementById('deploy-progress-label');
+  const statusLabel=document.getElementById('deploy-status-label');
+  const assetList=document.getElementById('deploy-asset-list');
+  const doneBtn=document.getElementById('deploy-done-btn');
+  let progress=0;
+  const stepTime=30; // milliseconds between ticks
+  const totalSteps=100; // 0 to 100 in 1% increments
+  const tickDuration=3000/totalSteps; // 30ms per tick to complete in 3s
+  // Build per-asset lines
+  const statusTexts=['Queued','In Progress','Installing','Validating','Success'];
+  targets.forEach((t,i)=>{
+    const div=document.createElement('div');
+    div.id='deploy-asset-'+i;
+    div.style.cssText='display:flex;align-items:center;gap:10px;padding:6px 0;font-size:13px;color:var(--text-secondary,#8899bb);border-bottom:1px solid var(--border,#1a2540);opacity:0;transition:opacity 0.4s ease';
+    div.innerHTML=`
+      <span style="width:16px;text-align:center;font-size:12px" id="deploy-icon-${i}">⏳</span>
+      <span style="flex:1;font-family:var(--font-mono,'SF Mono',monospace);font-size:12px">${t}</span>
+      <span style="font-size:11px;color:var(--text-muted,#556888)" id="deploy-status-${i}">Pending</span>
+    `;
+    assetList.appendChild(div);
+  });
+  const baseMsPerAsset=Math.max(100,Math.floor(2800/targets.length));
+  // Show assets one by one
+  targets.forEach((t,i)=>{
+    setTimeout(()=>{
+      const el=document.getElementById('deploy-asset-'+i);
+      if(el) el.style.opacity='1';
+      // Animate through statuses for this asset
+      let sIdx=0;
+      const sInterval=setInterval(()=>{
+        const iconEl=document.getElementById('deploy-icon-'+i);
+        const stEl=document.getElementById('deploy-status-'+i);
+        if(!iconEl||!stEl){clearInterval(sInterval);return;}
+        if(sIdx<statusTexts.length-1){
+          iconEl.textContent=['⏳','🔄','📦','🔍','✅'][sIdx];
+          stEl.textContent=statusTexts[sIdx];
+          sIdx++;
+        }else{
+          iconEl.textContent='✅';
+          stEl.textContent='Success';
+          stEl.style.color='var(--low,#22cc66)';
+          clearInterval(sInterval);
+        }
+      },Math.max(200,Math.floor(2400/targets.length)));
+    },i*baseMsPerAsset);
+  });
+  // Animate progress bar
+  const progInterval=setInterval(()=>{
+    progress+=1;
+    if(bar) bar.style.width=progress+'%';
+    if(label) label.textContent=progress+'%';
+    if(progress<=30) statusLabel.textContent='Queuing deployments...';
+    else if(progress<=60) statusLabel.textContent='Deploying patches...';
+    else if(progress<=85) statusLabel.textContent='Validating installations...';
+    else if(progress<100) statusLabel.textContent='Finalizing...';
+    else {
+      statusLabel.textContent='Deployment complete ✅';
+      clearInterval(progInterval);
+      doneBtn.style.display='inline-block';
+      doneBtn.onclick=function(){
+        overlay.remove();
+        showToast('Deployment ${depId} completed successfully across '+targetCount+' assets');
+      };
+    }
+  },tickDuration);
+}
+
+function statusBadge(s){
+  const map={
+    'Completed':'badge-success','Success':'badge-success','Fixed':'badge-success',
+    'In Progress':'badge-warning','Pending':'badge-warning','Queued':'badge-warning',
+    'Failed':'badge-critical','Rolled Back':'badge-medium',
+    'Active':'badge-critical','Mitigated':'badge-info',
+    'False Positive':'badge-medium','Risk Accepted':'badge-medium',
+    'Success':'badge-success','Timeout':'badge-critical'
+  };
+  return `<span class="badge ${map[s]||'badge-info'}">${s}</span>`;
+}
+
+function createRemediation(){showToast('Creating remediation for selected findings...')}
+function exportCSV(){
+  let csv='CVE,Name,Severity,Asset,Status\n';
+  (window.__allFindings||[]).forEach(f=>{csv+=`${f.cve},"${f.name}",${f.severity},${f.hostname},${f.status}\n`});
+  const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download='remflow_findings.csv';a.click();
+}
+
+function showToast(msg){
+  const t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--bg-elevated);border:1px solid var(--accent);color:var(--text-primary);padding:12px 20px;border-radius:var(--radius);font-size:13px;z-index:999;box-shadow:var(--shadow)';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2500);
+}
+
+// Init — check hash first for deep links
+function handleHash(){
+  const hash=location.hash.replace(/^#\/?/,'').split('/');
+  const page=hash[0]||'dashboard';
+  const param=hash.slice(1).join('/');
+  if(page==='finding'&&param) setTimeout(()=>viewFinding(decodeURIComponent(param)),100);
+  else if(page==='deployment'&&param) setTimeout(()=>viewDeployment(decodeURIComponent(param)),100);
+  else if(page==='remediation'&&param) setTimeout(()=>viewRemediation(decodeURIComponent(param)),100);
+  else if(page==='deploy-fix'&&param) setTimeout(()=>showDeployFix(decodeURIComponent(param)),100);
+  else if(page==='create-remediation'&&param) setTimeout(()=>showCreateRemediation(decodeURIComponent(param)),100);
+  else if(page==='asset'&&param) setTimeout(()=>viewAsset(decodeURIComponent(param)),100);
+  else navigateTo(page);
+}
+// Update URL on nav so deep links work
+let _settingHash=false;
+const _origNav=navigateTo;
+navigateTo=function(page,param){
+  _origNav(page,param);
+  if(_settingHash) return;
+  _settingHash=true;
+  const hashMap={'finding-detail':'finding','deployment-detail':'deployment','remediation-detail':'remediation','create-remediation':'create-remediation','deploy-fix':'deploy-fix','asset-detail':'asset'};
+  const hashPage=hashMap[page]||page;
+  try{
+    if(param) history.replaceState(null,'','#/'+hashPage+'/'+encodeURIComponent(param));
+    else if(page!=='dashboard') history.replaceState(null,'','#/'+hashPage);
+    else history.replaceState(null,'','#');
+  }catch(e){}
+  setTimeout(()=>{_settingHash=false},100);
+};
+document.getElementById('syncTime').textContent='Last sync: '+ago(0);
+handleHash();
+</script>
+</body>
+</html>

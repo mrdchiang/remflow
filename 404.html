@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Redirecting...</title>
+<script>
+// GitHub Pages 404.html fallback: capture the requested path and redirect with hash
+(function(){
+  var path = location.pathname;
+  // Strip the repo name prefix
+  var base = '/remflow';
+  if (path.indexOf(base) === 0) {
+    path = path.slice(base.length);
+  }
+  // Strip leading slash
+  if (path.charAt(0) === '/') path = path.slice(1);
+  var search = location.search;
+  // Build the hash URL
+  var dest = base + '/#' + (path || '') + search;
+  // In a real browser this redirects instantly
+  location.replace(base + '/#' + (path || '') + search);
+})();
+</script>
+</head>
+<body>
+<p>Redirecting to <a href="#" id="link">the page</a>...</p>
+<noscript>JavaScript is required for this redirect.</noscript>
+<script>
+document.getElementById('link').href = (location.hash || '#').slice(1) || '/remflow/';
+</script>
+</body>
+</html>
