@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>PatchFlow — Remediation Intelligence</title>
+<title>RemFlow — Remediation Intelligence</title>
 <style>
 :root {
   --bg-root: #060b18; --bg-surface: #0c1225; --bg-elevated: #111830;
@@ -134,7 +134,7 @@ tr:hover td{background:var(--bg-hover)}
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 <div class="sidebar" id="sidebar">
 <div class="sidebar-brand">
-<div class="logo">⚡</div><span class="title">PatchFlow</span>
+<div class="logo">⚡</div><span class="title">RemFlow</span>
 </div>
 <div class="sidebar-nav">
 <div class="section-label">Operations</div>
@@ -175,9 +175,9 @@ tr:hover td{background:var(--bg-hover)}
 </div></div>
 
 <script>
-const THEMES = ['dark','light']; let currentTheme = localStorage.getItem('patchflow-theme')||'dark';
+const THEMES = ['dark','light']; let currentTheme = localStorage.getItem('remflow-theme')||'dark';
 document.documentElement.setAttribute('data-theme',currentTheme);
-function toggleTheme(){currentTheme=currentTheme==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',currentTheme);localStorage.setItem('patchflow-theme',currentTheme)}
+function toggleTheme(){currentTheme=currentTheme==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',currentTheme);localStorage.setItem('remflow-theme',currentTheme)}
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('show')}
 function goBack(){history.back()}
 const SEVS=['Critical','High','Medium','Low'];
@@ -234,7 +234,7 @@ const deployments = [];
 for(let d=0;d<20;d++){
   const st=pick(['Completed','In Progress','Failed','Rolled Back']);
   deployments.push({
-    id:'DEP-'+(2000+d), package:'PatchFlow-'+(3000+d),
+    id:'DEP-'+(2000+d), package:'RemFlow-'+(3000+d),
     type:pick(['Software Update Package','Application Deployment','Configuration Change','Registry Update']),
     targetCount:randInt(5,30), successRate:st==='Completed'?randInt(92,100):st==='Failed'?randInt(20,50):randInt(60,90),
     start:ago(randInt(1,168)), end:st==='Completed'||st==='Rolled Back'?ago(randInt(0,48)):'—',
@@ -281,15 +281,14 @@ function renderDashboard(){
   <div class="stat-card" onclick="navigateTo('deployments')"><div class="stat-value" style="color:var(--critical)">${failed}</div><div class="stat-label">Failed / Excepted</div><div class="stat-sub">Manual intervention needed</div></div>
   <div class="stat-card" onclick="navigateTo('remediations')"><div class="stat-value" style="color:var(--accent)">${Math.round(autoRem/total*100)}%</div><div class="stat-label">Auto-Remediation Rate</div><div class="stat-sub">Target: 85% — ${Math.max(0,85-Math.round(autoRem/total*100))}% gap</div></div>
 </div>
-`;
-// Cross-tool banner
-const pendingItems = checkCrossToolQueue();
-if (pendingItems.length > 0) {
+`;// Cross-tool banner from ShieldView
+const pendingRem = checkCrossToolQueue();
+if (pendingRem.length > 0) {
   html += `<div style="background:var(--accent-glow);border:1px solid var(--accent);border-radius:var(--radius-lg);padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
     <span style="font-size:20px">🔄</span>
     <div style="flex:1">
-      <div style="font-weight:600">${pendingItems.length} remediation${pendingItems.length>1?'s':''} received from ShieldView</div>
-      <div style="font-size:12px;color:var(--text-secondary)">${pendingItems.map(p => p.cve).join(', ')}</div>
+      <div style="font-weight:600">${pendingRem.length} remediation${pendingRem.length>1?'s':''} received from ShieldView</div>
+      <div style="font-size:12px;color:var(--text-secondary)">${pendingRem.map(p=>p.cve).join(', ')}</div>
     </div>
     <button class="btn btn-sm btn-primary" onclick="navigateTo('remediations')">View</button>
   </div>`;
@@ -746,7 +745,7 @@ ${groups.map(g=>`<div class="stat-card"><div class="stat-value" style="font-size
 ${allF.filter((f,i,a)=>a.findIndex(x=>x.hostname===f.hostname)===i).map(f=>`<tr class="clickable" onclick="viewAsset('${f.hostname}')"><td class="mono text-link">${f.hostname}</td><td style="font-size:12px">${f.os||'—'}</td><td style="font-size:12px;color:var(--text-muted)">${f.loc||'—'}</td></tr>`).join('')}
 </table></div></div>
 <div class="flex" style="margin-top:16px;gap:8px">
-  <button class="btn btn-primary" onclick="showDeployModal('${depId}',${targets.length},[${targets.map(h=>`'${h}'`).join(',')}],'${cveId}')">🚀 Start Deployment</button>
+  <button class="btn btn-primary" onclick="showDeployModal('${depId}',${targets.length},[${targets.map(h=>`'${h}'`).join(',')}])">🚀 Start Deployment</button>
   <button class="btn" onclick="showToast('Deployment scheduled')">📅 Schedule</button>
   <button class="btn" onclick="showToast('Previewing deployment...')">👁️ Preview</button>
 </div>
@@ -755,7 +754,7 @@ ${allF.filter((f,i,a)=>a.findIndex(x=>x.hostname===f.hostname)===i).map(f=>`<tr 
   navigateTo('deploy-fix');
 }
 
-function showDeployModal(depId,targetCount,targets,cveId){
+function showDeployModal(depId,targetCount,targets){
   // Create overlay
   const overlay=document.createElement('div');
   overlay.id='deploy-modal-overlay';
@@ -851,8 +850,7 @@ function showDeployModal(depId,targetCount,targets,cveId){
       doneBtn.style.display='inline-block';
       doneBtn.onclick=function(){
         overlay.remove();
-        markRemediationComplete(cveId);
-        showToast('✓ Deployment complete! PatchFlow notified TheValidator to verify.');
+        showToast('Deployment ${depId} completed successfully across '+targetCount+' assets');
       };
     }
   },tickDuration);
@@ -875,7 +873,7 @@ function exportCSV(){
   let csv='CVE,Name,Severity,Asset,Status\n';
   (window.__allFindings||[]).forEach(f=>{csv+=`${f.cve},"${f.name}",${f.severity},${f.hostname},${f.status}\n`});
   const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);a.download='patchflow_findings.csv';a.click();
+  a.href=URL.createObjectURL(blob);a.download='remflow_findings.csv';a.click();
 }
 
 function showToast(msg){
@@ -888,18 +886,14 @@ function showToast(msg){
 
 // Cross-tool localStorage bridge
 function checkCrossToolQueue() {
-  try {
-    const queue = JSON.parse(localStorage.getItem('security-tools:remediation-queue') || '[]');
-    const pending = queue.filter(i => i.status === 'pending');
-    return pending;
-  } catch(e) { return []; }
+  try { return JSON.parse(localStorage.getItem('security-tools:remediation-queue') || '[]').filter(i => i.status === 'pending'); }
+  catch(e) { return []; }
 }
 function markRemediationComplete(cveId) {
   try {
     const queue = JSON.parse(localStorage.getItem('security-tools:remediation-queue') || '[]');
     const updated = queue.map(i => i.cve === cveId ? {...i, status: 'deployed', completedAt: new Date().toISOString()} : i);
     localStorage.setItem('security-tools:remediation-queue', JSON.stringify(updated));
-    // Also add to validated list for TheValidator
     const validated = JSON.parse(localStorage.getItem('security-tools:validated-remediations') || '[]');
     const item = queue.find(i => i.cve === cveId);
     if (item && !validated.find(v => v.cve === cveId)) {
@@ -908,7 +902,6 @@ function markRemediationComplete(cveId) {
     }
   } catch(e) {}
 }
-
 // Init — check hash first for deep links
 function handleHash(){
   const hash=location.hash.replace(/^#\/?/,'').split('/');
@@ -940,11 +933,6 @@ navigateTo=function(page,param){
 };
 document.getElementById('syncTime').textContent='Last sync: '+ago(0);
 handleHash();
-// Show pending badge from cross-tool queue
-const pendingCount = checkCrossToolQueue().length;
-if (pendingCount > 0) {
-  showToast(`🔄 ${pendingCount} pending remediation${pendingCount>1?'s':''} from ShieldView — check the dashboard`);
-}
 </script>
 </body>
 </html>
