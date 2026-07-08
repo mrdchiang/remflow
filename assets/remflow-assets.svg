@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
+  <rect width="800" height="500" fill="#060b18" rx="8"/>
+  <rect x="0" y="0" width="180" height="500" fill="#080e1c"/>
+  <rect x="170" y="0" width="1" height="500" fill="#1a2540"/>
+  <text x="20" y="32" font-family="sans-serif" font-size="14" font-weight="bold" fill="#e8ecf4">⚡ RemFlow</text>
+  <rect x="12" y="50" width="156" height="28" fill="#182040" rx="6"/>
+  <text x="24" y="69" font-family="sans-serif" font-size="13" fill="#8899bb">📊 Dashboard</text>
+  <text x="24" y="97" font-family="sans-serif" font-size="13" fill="#e8ecf4">🔍 Findings</text>
+  <text x="24" y="125" font-family="sans-serif" font-size="13" fill="#e8ecf4">🛠️ Remediations</text>
+  <text x="24" y="153" font-family="sans-serif" font-size="13" fill="#e8ecf4">📦 Deployments</text>
+  <text x="24" y="181" font-family="sans-serif" font-size="13" fill="#e8ecf4">🖥️ Assets</text>
+  <rect x="180" y="0" width="620" height="56" fill="#0c1225"/>
+  <text x="200" y="34" font-family="sans-serif" font-size="16" font-weight="600" fill="#e8ecf4">Dashboard</text>
+  <text x="600" y="34" font-family="sans-serif" font-size="11" fill="#556888">Last sync: 2026-07-08 16:22</text>
+  <rect x="740" y="14" width="28" height="28" fill="#1a2540" rx="14"/>
+  <text x="748" y="33" font-family="sans-serif" font-size="14" fill="#e8ecf4">🌓</text>
+  <rect x="196" y="72" width="110" height="60" fill="#111830" rx="8" stroke="#1a2540" stroke-width="1"/>
+  <text x="220" y="98" font-family="sans-serif" font-size="22" font-weight="bold" fill="#0066ff" text-anchor="middle">113</text>
+  <text x="220" y="118" font-family="sans-serif" font-size="10" fill="#556888" text-anchor="middle">Total Findings</text>
+  <rect x="316" y="72" width="110" height="60" fill="#111830" rx="8" stroke="#1a2540" stroke-width="1"/>
+  <text x="351" y="98" font-family="sans-serif" font-size="22" font-weight="bold" fill="#22cc66" text-anchor="middle">20</text>
+  <text x="351" y="118" font-family="sans-serif" font-size="10" fill="#556888" text-anchor="middle">Auto-Remediated</text>
+  <rect x="436" y="72" width="110" height="60" fill="#111830" rx="8" stroke="#1a2540" stroke-width="1"/>
+  <text x="471" y="98" font-family="sans-serif" font-size="22" font-weight="bold" fill="#e6b800" text-anchor="middle">23</text>
+  <text x="471" y="118" font-family="sans-serif" font-size="10" fill="#556888" text-anchor="middle">Pending Review</text>
+  <rect x="556" y="72" width="110" height="60" fill="#111830" rx="8" stroke="#1a2540" stroke-width="1"/>
+  <text x="591" y="98" font-family="sans-serif" font-size="22" font-weight="bold" fill="#ff4444" text-anchor="middle">48</text>
+  <text x="591" y="118" font-family="sans-serif" font-size="10" fill="#556888" text-anchor="middle">Failed / Excepted</text>
+  <rect x="676" y="72" width="110" height="60" fill="#111830" rx="8" stroke="#1a2540" stroke-width="1"/>
+  <text x="711" y="98" font-family="sans-serif" font-size="22" font-weight="bold" fill="#0066ff" text-anchor="middle">18%</text>
+  <text x="711" y="118" font-family="sans-serif" font-size="10" fill="#556888" text-anchor="middle">Remediation Rate</text>
+  <rect x="196" y="142" width="590" height="40" fill="#0c1a30" rx="8" stroke="#0066ff" stroke-width="1"/>
+  <text x="216" y="168" font-family="sans-serif" font-size="20">🔄</text>
+  <text x="244" y="162" font-family="sans-serif" font-size="13" font-weight="600" fill="#e8ecf4">1 remediation received from ShieldView</text>
+  <text x="244" y="176" font-family="sans-serif" font-size="11" fill="#8899bb">CVE-2026-12345</text>
+  <rect x="710" y="150" width="60" height="24" fill="#0052cc" rx="6"/>
+  <text x="726" y="167" font-family="sans-serif" font-size="12" fill="#fff">View</text>
+  <rect x="196" y="192" width="285" height="140" fill="#111830" rx="8" stroke="#1a2540" stroke-width="1"/>
+  <text x="210" y="214" font-family="sans-serif" font-size="13" font-weight="600" fill="#e8ecf4">Severity Distribution</text>
+  <rect x="220" y="260" width="40" height="60" fill="#ff4444" rx="4"/>
+  <text x="230" y="254" font-family="sans-serif" font-size="10" fill="#ff4444">C:29</text>
+  <rect x="280" y="240" width="40" height="80" fill="#ff7722" rx="4"/>
+  <text x="290" y="234" font-family="sans-serif" font-size="10" fill="#ff7722">H:27</text>
+  <rect x="340" y="250" width="40" height="70" fill="#e6b800" rx="4"/>
+  <text x="350" y="244" font-family="sans-serif" font-size="10" fill="#e6b800">M:28</text>
+  <rect x="400" y="255" width="40" height="65" fill="#22cc66" rx="4"/>
+  <text x="410" y="249" font-family="sans-serif" font-size="10" fill="#22cc66">L:29</text>
+  <rect x="496" y="192" width="290" height="140" fill="#111830" rx="8" stroke="#1a2540" stroke-width="1"/>
+  <text x="510" y="214" font-family="sans-serif" font-size="13" font-weight="600" fill="#e8ecf4">Top CVEs by Volume</text>
+  <text x="510" y="234" font-family="sans-serif" font-size="10" fill="#556888" font-weight="bold">CVE</text>
+  <text x="620" y="234" font-family="sans-serif" font-size="10" fill="#556888" font-weight="bold">AFFECTED</text>
+  <rect x="510" y="238" width="260" height="1" fill="#1a2540"/>
+  <text x="510" y="256" font-family="sans-serif" font-size="11" fill="#8899bb">CVE-2026-42002</text>
+  <text x="620" y="256" font-family="sans-serif" font-size="11" fill="#e8ecf4">11 endpoints</text>
+  <text x="510" y="274" font-family="sans-serif" font-size="11" fill="#8899bb">CVE-2026-38801</text>
+  <text x="620" y="274" font-family="sans-serif" font-size="11" fill="#e8ecf4">9 endpoints</text>
+  <text x="510" y="292" font-family="sans-serif" font-size="11" fill="#8899bb">CVE-2026-04567</text>
+  <text x="620" y="292" font-family="sans-serif" font-size="11" fill="#e8ecf4">8 endpoints</text>
+  <text x="510" y="310" font-family="sans-serif" font-size="11" fill="#8899bb">CVE-2026-22984</text>
+  <text x="620" y="310" font-family="sans-serif" font-size="11" fill="#e8ecf4">8 endpoints</text>
+  <rect x="196" y="342" width="590" height="130" fill="#111830" rx="8" stroke="#1a2540" stroke-width="1"/>
+  <text x="210" y="364" font-family="sans-serif" font-size="13" font-weight="600" fill="#e8ecf4">Recent Deployments</text>
+  <text x="210" y="384" font-family="sans-serif" font-size="10" fill="#556888" font-weight="bold">DEPLOYMENT</text>
+  <text x="310" y="384" font-family="sans-serif" font-size="10" fill="#556888" font-weight="bold">PACKAGE</text>
+  <text x="480" y="384" font-family="sans-serif" font-size="10" fill="#556888" font-weight="bold">COVERAGE</text>
+  <text x="570" y="384" font-family="sans-serif" font-size="10" fill="#556888" font-weight="bold">STATUS</text>
+  <rect x="210" y="388" width="560" height="1" fill="#1a2540"/>
+  <text x="210" y="406" font-family="sans-serif" font-size="11" fill="#8899bb">DEP-2000</text>
+  <text x="310" y="406" font-family="sans-serif" font-size="11" fill="#e8ecf4">RemFlow-3000</text>
+  <text x="480" y="406" font-family="sans-serif" font-size="11" fill="#e8ecf4">93%</text>
+  <rect x="560" y="396" width="60" height="18" fill="#123020" rx="9"/>
+  <text x="572" y="409" font-family="sans-serif" font-size="10" fill="#22cc66">Completed</text>
+  <rect x="210" y="412" width="560" height="1" fill="#1a2540" opacity="0.3"/>
+  <text x="210" y="430" font-family="sans-serif" font-size="11" fill="#8899bb">DEP-2001</text>
+  <text x="310" y="430" font-family="sans-serif" font-size="11" fill="#e8ecf4">RemFlow-3001</text>
+  <text x="480" y="430" font-family="sans-serif" font-size="11" fill="#e8ecf4">62%</text>
+  <rect x="560" y="420" width="50" height="18" fill="#352215" rx="9"/>
+  <text x="572" y="433" font-family="sans-serif" font-size="10" fill="#ff7722">Failed</text>
+  <text x="210" y="454" font-family="sans-serif" font-size="11" fill="#8899bb">DEP-2002</text>
+  <text x="310" y="454" font-family="sans-serif" font-size="11" fill="#e8ecf4">RemFlow-3002</text>
+  <text x="480" y="454" font-family="sans-serif" font-size="11" fill="#e8ecf4">48%</text>
+  <rect x="560" y="444" width="60" height="18" fill="#353015" rx="9"/>
+  <text x="572" y="457" font-family="sans-serif" font-size="10" fill="#e6b800">In Progress</text>
+</svg>
