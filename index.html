@@ -177,7 +177,7 @@ tr:hover td{background:var(--bg-hover)}
 <script>
 // ── API Configuration ──────────────────────────────────────────
 const API_MODE = "demo"; // "demo" (fake data) | "api" (live backend)
-const API_BASE = "https://security-tools-api.onrender.com/v1"; // Change to deployed URL
+const API_BASE = "http://localhost:8000/v1"; // Change to deployed URL
 
 let apiCache = {};
 async function apiFetch(endpoint, opts = {}) {
