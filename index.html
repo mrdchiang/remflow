@@ -175,6 +175,29 @@ tr:hover td{background:var(--bg-hover)}
 </div></div>
 
 <script>
+// ── API Configuration ──────────────────────────────────────────
+const API_MODE = "demo"; // "demo" (fake data) | "api" (live backend)
+const API_BASE = "https://security-tools-api.onrender.com/v1"; // Change to deployed URL
+
+let apiCache = {};
+async function apiFetch(endpoint, opts = {}) {
+  const key = endpoint + JSON.stringify(opts);
+  if (apiCache[key]) return apiCache[key];
+  try {
+    const res = await fetch(API_BASE + endpoint, {
+      headers: { 'Content-Type': 'application/json', ...opts.headers },
+      ...opts,
+    });
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    const data = await res.json();
+    if (!opts.noCache) apiCache[key] = data;
+    return data;
+  } catch(e) {
+    console.warn('API fetch failed, falling back to demo data:', e.message);
+    return null;
+  }
+}
+
 const THEMES = ['dark','light']; let currentTheme = localStorage.getItem('remflow-theme')||'dark';
 document.documentElement.setAttribute('data-theme',currentTheme);
 function toggleTheme(){currentTheme=currentTheme==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',currentTheme);localStorage.setItem('remflow-theme',currentTheme)}
@@ -260,8 +283,22 @@ function navigateTo(page, param){
   document.getElementById('page-'+page).scrollTop=0;
 }
 
-function renderDashboard(){
-  const allF=assets.flatMap(a=>a.findings);
+async function renderDashboard(){
+  let allF, assetsList, deploymentsList, remediationsList;
+
+  if (API_MODE === "api") {
+    const dash = await apiFetch('/remflow/dashboard');
+    if (dash) {
+      // Render from API directly
+      document.getElementById('page-dashboard').innerHTML = renderDashboardHTML(dash);
+      return;
+    }
+    allF = []; assetsList = assets; deploymentsList = deployments; remediationsList = remediations;
+  } else {
+    allF=assets.flatMap(a=>a.findings);
+    assetsList = assets; deploymentsList = deployments; remediationsList = remediations;
+  }
+  // Fallback client-side rendering
   const total=allF.length;
   const autoRem=allF.filter(f=>f.status==='Fixed').length;
   const pending=allF.filter(f=>f.status==='Active').length;
@@ -271,15 +308,36 @@ function renderDashboard(){
   const cveCounts={};
   allF.forEach(f=>{cveCounts[f.cve]=(cveCounts[f.cve]||0)+1});
   const topCVE=Object.entries(cveCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  const recentDeploy=deployments.slice(0,5);
+  const recentDeploy=deploymentsList.slice(0,5);
 
+  document.getElementById('page-dashboard').innerHTML = renderDashboardHTML({
+    total_findings: total,
+    auto_remediated: autoRem,
+    auto_rate: Math.round(autoRem/total*100),
+    pending_review: pending,
+    failed_remediations: failed,
+    by_severity: svCounts,
+    assets_monitored: assetsList.length,
+    recent_deployments: recentDeploy,
+    top_cves: topCVE.map(([cve,cnt])=>({cve,affected:cnt})),
+  });
+}
+
+function renderDashboardHTML(dash){
+  const svCounts=dash.by_severity||{Critical:0,High:0,Medium:0,Low:0};
+  const topCVE=dash.top_cves||[];
+  const recentDeploy=dash.recent_deployments||[];
+  const total=dash.total_findings||0;
+  const autoRem=dash.auto_remediated||0;
+  const pendingRate=dash.auto_rate||0;
+  const pendingCount=dash.pending_review||0;
+  const failedCount=dash.failed_remediations||0;
   let html=`
-<div class="stats-grid">
   <div class="stat-card" onclick="navigateTo('findings')"><div class="stat-value" style="color:var(--accent)">${total}</div><div class="stat-label">Total Findings</div><div class="stat-sub">Across ${assets.length} assets</div></div>
   <div class="stat-card" onclick="navigateTo('remediations')"><div class="stat-value" style="color:var(--low)">${autoRem}</div><div class="stat-label">Auto-Remediated</div><div class="stat-sub">${Math.round(autoRem/total*100)}% resolution rate</div></div>
-  <div class="stat-card" onclick="navigateTo('findings')"><div class="stat-value" style="color:var(--medium)">${pending}</div><div class="stat-label">Pending Review</div><div class="stat-sub">Awaiting triage</div></div>
-  <div class="stat-card" onclick="navigateTo('deployments')"><div class="stat-value" style="color:var(--critical)">${failed}</div><div class="stat-label">Failed / Excepted</div><div class="stat-sub">Manual intervention needed</div></div>
-  <div class="stat-card" onclick="navigateTo('remediations')"><div class="stat-value" style="color:var(--accent)">${Math.round(autoRem/total*100)}%</div><div class="stat-label">Auto-Remediation Rate</div><div class="stat-sub">Target: 85% — ${Math.max(0,85-Math.round(autoRem/total*100))}% gap</div></div>
+  <div class="stat-card" onclick="navigateTo('findings')"><div class="stat-value" style="color:var(--medium)">${pendingCount}</div><div class="stat-label">Pending Review</div><div class="stat-sub">Awaiting triage</div></div>
+  <div class="stat-card" onclick="navigateTo('deployments')"><div class="stat-value" style="color:var(--critical)">${failedCount}</div><div class="stat-label">Failed / Excepted</div><div class="stat-sub">Manual intervention needed</div></div>
+  <div class="stat-card" onclick="navigateTo('remediations')"><div class="stat-value" style="color:var(--accent)">${pendingRate}%</div><div class="stat-label">Auto-Remediation Rate</div><div class="stat-sub">Target: 85% — ${Math.max(0,85-pendingRate)}% gap</div></div>
 </div>
 `;// Cross-tool banner from ShieldView
 const pendingRem = checkCrossToolQueue();
@@ -868,7 +926,43 @@ function statusBadge(s){
   return `<span class="badge ${map[s]||'badge-info'}">${s}</span>`;
 }
 
-function createRemediation(){showToast('Creating remediation for selected findings...')}
+// ── API-backed actions ────────────────────────────────────────
+async function createRemediation(cveId, targets, title) {
+  if (API_MODE === "api") {
+    try {
+      const resp = await fetch(API_BASE + '/webhooks/remediate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cve: cveId, targets: targets || [], title: title || '', severity: 'Medium' }),
+      });
+      const data = await resp.json();
+      if (data.status === 'created') showToast(`✅ Remediation ${data.remediation.id} created`);
+    } catch(e) {
+      showToast('⚠️ API error: ' + e.message);
+    }
+  } else {
+    showToast('Creating remediation for selected findings...');
+  }
+}
+
+async function triggerDeploy(remediationId, packageType) {
+  if (API_MODE === "api") {
+    try {
+      const resp = await fetch(API_BASE + '/webhooks/deploy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ remediation_id: remediationId, package_type: packageType || 'Software Update Package' }),
+      });
+      const data = await resp.json();
+      if (data.status === 'deploying') showToast(`🚀 Deployment ${data.deployment.id} started`);
+    } catch(e) {
+      showToast('⚠️ API error: ' + e.message);
+    }
+  } else {
+    showToast('Scheduling deployment...');
+  }
+}
+
 function exportCSV(){
   let csv='CVE,Name,Severity,Asset,Status\n';
   (window.__allFindings||[]).forEach(f=>{csv+=`${f.cve},"${f.name}",${f.severity},${f.hostname},${f.status}\n`});
