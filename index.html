@@ -334,7 +334,7 @@ function renderDashboardHTML(dash){
   const failedCount=dash.failed_remediations||0;
   let html=`
   <div class="stat-card" onclick="navigateTo('findings')"><div class="stat-value" style="color:var(--accent)">${total}</div><div class="stat-label">Total Findings</div><div class="stat-sub">Across ${assets.length} assets</div></div>
-  <div class="stat-card" onclick="navigateTo('remediations')"><div class="stat-value" style="color:var(--low)">${autoRem}</div><div class="stat-label">Auto-Remediated</div><div class="stat-sub">${Math.round(autoRem/total*100)}% resolution rate</div></div>
+  <div class="stat-card" onclick="navigateTo('remediations')"><div class="stat-value" style="color:var(--low)">${autoRem}</div><div class="stat-label">Auto-Remediated</div><div class="stat-sub">${total > 0 ? Math.round(autoRem/total*100) : 0}% resolution rate</div></div>
   <div class="stat-card" onclick="navigateTo('findings')"><div class="stat-value" style="color:var(--medium)">${pendingCount}</div><div class="stat-label">Pending Review</div><div class="stat-sub">Awaiting triage</div></div>
   <div class="stat-card" onclick="navigateTo('deployments')"><div class="stat-value" style="color:var(--critical)">${failedCount}</div><div class="stat-label">Failed / Excepted</div><div class="stat-sub">Manual intervention needed</div></div>
   <div class="stat-card" onclick="navigateTo('remediations')"><div class="stat-value" style="color:var(--accent)">${pendingRate}%</div><div class="stat-label">Auto-Remediation Rate</div><div class="stat-sub">Target: 85% — ${Math.max(0,85-pendingRate)}% gap</div></div>
