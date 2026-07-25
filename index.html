@@ -793,7 +793,7 @@ const KEYS = {
   };
   // Try dynamic import from launchpad; fall back to vendored localStorage
   try {
-    import('http://localhost:11434/v1/launchpad/storage-adapter.js')
+    import('/launchpad/shared/storage-adapter.js')
       .then(function(mod) {
         window.__remflowStorageAdapter = mod.default || mod;
         console.log('[RemFlow] ✅ Launchpad storage adapter loaded');
@@ -811,7 +811,7 @@ const KEYS = {
   }
 })();
 
-// ════ Contract Version Check ─────────────────────────────────(function(){  var CV = KEYS.CONTRACT_VERSION;  var VER = '1.0.0';  try {    var stored = localStorage.getItem(CV);    if (!stored) { localStorage.setItem(CV, VER); return; }    if (stored !== VER) {      var b = document.createElement('div');      b.style.cssText = 'background:#352215;color:#ff7722;padding:8px 16px;text-align:center;font-size:12px;font-family:monospace;cursor:pointer;z-index:99999;position:relative';      b.textContent = '⚠ Contract v' + VER + ' ≠ stored v' + stored + '. Some features may not work. Click to dismiss.';      b.onclick = function(){ b.remove(); localStorage.setItem(CV, VER); };      document.body.insertBefore(b, document.body.firstChild);    }  } catch(e) {}})();
+// ════ Contract Version Check ─────────────────────────────────(function(){  var CV = KEYS.CONTRACT_VERSION;  var VER = '2.0.0';  try {    var stored = localStorage.getItem(CV);    if (!stored) { localStorage.setItem(CV, VER); return; }    if (stored !== VER) {      var b = document.createElement('div');      b.style.cssText = 'background:#352215;color:#ff7722;padding:8px 16px;text-align:center;font-size:12px;font-family:monospace;cursor:pointer;z-index:99999;position:relative';      b.textContent = '⚠ Contract v' + VER + ' ≠ stored v' + stored + '. Some features may not work. Click to dismiss.';      b.onclick = function(){ b.remove(); localStorage.setItem(CV, VER); };      document.body.insertBefore(b, document.body.firstChild);    }  } catch(e) {}})();
 // ════ Error Catcher ──────────────────────────────────────────
 (function(){'use strict';const SK=KEYS.ERROR_LOG,MX=200,TN=document.title||location.pathname.split('/').filter(Boolean).pop()||'Unknown';function gl(){try{return JSON.parse(localStorage.getItem(SK)||'[]')}catch(e){return[]}}function sl(l){try{while(l.length>MX)l.shift();localStorage.setItem(SK,JSON.stringify(l))}catch(e){try{while(l.length>50)l.shift();localStorage.setItem(SK,JSON.stringify(l))}catch(e2){}}}function ae(e){e.tool=TN;e.url=location.href;e.timestamp=new Date().toISOString();e.userAgent=navigator.userAgent;const l=gl();l.push(e);sl(l)}
 window.onerror=function(m,s,l,c,err){ae({type:'runtime-error',message:String(m),source:s||'',line:l||0,col:c||0,stack:err&&err.stack?String(err.stack).slice(0,2000):''});return false};
@@ -821,7 +821,7 @@ window.__debugLog=function(m,d){ae({type:'manual',message:String(m),data:d?JSON.
 console.log('['+TN+'] Error catcher active ✓');})();
 
 // ── API Configuration ──────────────────────────────────────────
-const API_MODE = "api"; // "demo" (fake data) | "api" (live backend)
+const API_MODE = "demo"; // "demo" (fake data) | "api" (live backend)
 const API_BASE = "http://localhost:8000/v1"; // Change to deployed URL
 
 let apiCache = {};
@@ -853,7 +853,7 @@ const SEV_W={Critical:4,High:3,Medium:2,Low:1};
 const LOCS=['US-East (nyc1)','US-West (sfo1)','EU-Central (fra1)','APAC-Singapore','US-East (iad1)','EU-West (lhr1)'];
 const OSES=['Windows Server 2022','Windows Server 2019','Windows 11 Enterprise','Windows 10 Enterprise','RHEL 9.4','RHEL 8.10','Ubuntu 24.04 LTS','Ubuntu 22.04 LTS','macOS 15 Sequoia','macOS 14 Sonoma'];
 const STS=['Active','Fixed','Mitigated','False Positive','Risk Accepted'];
-const REM_STS=['Queued','In Progress','Completed','Failed','Rolled Back'];
+const REM_STS=['Queued','In Progress','Completed','Failed','Rolled Back','pending','queued','deployed','verified','blocked','rolledBack'];
 const DEPLOY_STS=['All','Installed','Pending','Failed'];
 const HOSTS=['WEB-PROD-03','DC-PROD-01','DC-PROD-02','EXCH-PROD-01','EXCH-PROD-02','APP-PROD-07','APP-PROD-12','DB-PROD-02','DB-PROD-05','DNS-PROD-01','FW-PROD-01','NPS-PROD-01','K8S-PROD-03','K8S-PROD-07','CI-CD-01','CI-CD-02','MAC-ENG-14','MAC-ENG-22','MAC-EXEC-01','MAC-EXEC-05','SRV-DEV-07','SRV-DEV-12','SRV-STAG-03','CORP-WS7421','CORP-LT3512','CORP-LT3902','NYC-WS441','SFO-LT228','LON-WS115','FRA-VM033'];
 const CVE_IDS=['CVE-2026-12345','CVE-2026-11223','CVE-2026-09876','CVE-2026-04567','CVE-2026-33445','CVE-2026-42002','CVE-2026-44004','CVE-2026-25501','CVE-2026-29100','CVE-2026-38801','CVE-2026-17204','CVE-2026-22984','CVE-2026-36712','CVE-2026-40123','CVE-2026-18990','CVE-2026-30221','CVE-2026-21101','CVE-2026-52003'];
@@ -1047,6 +1047,7 @@ function autoCreateShieldViewRemediations() {
       cve: c.cve,
       name: c.name || CVE_NAMES[c.cve] || c.cve,
       kb: svKb,
+      assets: c.assets.length > 0 ? c.assets : HOSTS.slice(0, Math.min(c.assetCount || 3, HOSTS.length)),
       targets: c.assets.length > 0 ? c.assets : HOSTS.slice(0, Math.min(c.assetCount || 3, HOSTS.length)),
       targetCount: c.assetCount || c.assets.length || Math.min(3, HOSTS.length),
       status: 'Queued',
@@ -1061,6 +1062,97 @@ function autoCreateShieldViewRemediations() {
   return autoRems;
 }
 
+function uniqueNonEmpty(values) {
+  return [...new Set((values || []).map(v => String(v || '').trim()).filter(Boolean))];
+}
+
+function canonicalAssets(rem) {
+  return uniqueNonEmpty([...(rem?.assets || []), ...(rem?.targets || []), ...(rem?.affectedAssets || [])]);
+}
+
+function buildCanonicalQueueItem(rem, source) {
+  const assets = canonicalAssets(rem);
+  const now = new Date().toISOString();
+  return {
+    id: rem?.id || ('RF-' + (rem?.cve || 'UNKNOWN') + '-' + Date.now()),
+    cve: rem?.cve || '',
+    name: rem?.name || rem?.title || CVE_NAMES[rem?.cve] || rem?.cve || 'Remediation',
+    kb: rem?.kb || KBS[rem?.cve] || 'n/a',
+    assets: assets,
+    targets: assets,
+    targetCount: assets.length,
+    status: 'pending',
+    source: source || 'RemFlow',
+    queuedAt: now,
+    createdAt: rem?.createdAt || now,
+    coverage: rem?.coverage || 0,
+    severity: rem?.severity || 'Medium',
+    rollbackCommand: rem?.rollbackCommand || null,
+    rollbackUnavailableReason: rem?.rollbackUnavailableReason || null,
+    sourceFindingIds: rem?.sourceFindingIds || [],
+    findings: rem?.findings || []
+  };
+}
+
+function isCanonicalRemediation(item) {
+  return !!(item && typeof item.cve === 'string' && item.cve &&
+    typeof item.name === 'string' && item.name &&
+    Array.isArray(item.assets) &&
+    ['pending','queued','deployed','verified','failed','blocked','rolledBack'].includes(item.status));
+}
+
+function normalizeQueueStatus(status) {
+  const s = String(status || 'pending').trim();
+  const lower = s.toLowerCase();
+  if (lower === 'completed' || lower === 'validated') return 'deployed';
+  if (lower === 'rolled back' || lower === 'rolledback') return 'rolledBack';
+  if (['pending','queued','deployed','verified','failed','blocked','rolledBack'].includes(s)) return s;
+  if (['pending','queued','deployed','verified','failed','blocked'].includes(lower)) return lower;
+  return 'pending';
+}
+
+function normalizeQueueRemediation(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const assetsList = uniqueNonEmpty([...(raw.assets || []), ...(raw.targets || []), ...(raw.affectedAssets || []), raw.asset, raw.hostname]);
+  const status = normalizeQueueStatus(raw.status);
+  const now = new Date().toISOString();
+  const item = {
+    ...raw,
+    id: raw.id || raw.remediationKey || ('RQ-' + (raw.cve || 'UNKNOWN') + '-' + Math.abs(JSON.stringify(raw).split('').reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0))),
+    cve: raw.cve || '',
+    name: raw.name || raw.title || CVE_NAMES[raw.cve] || raw.cve || 'Remediation',
+    kb: raw.kb || KBS[raw.cve] || 'n/a',
+    assets: assetsList,
+    targets: assetsList,
+    targetCount: assetsList.length,
+    status,
+    created: raw.created || raw.createdAt || raw.timestamp || raw.queuedAt || now,
+    completed: raw.completed || raw.completedAt || raw.deployedAt || '-',
+    coverage: raw.coverage || raw.deployedCount || 0,
+    fromQueue: true,
+    fromShieldView: raw.fromShieldView || raw.from === 'ShieldView' || raw.source === 'ShieldView'
+  };
+  return isCanonicalRemediation(item) ? item : null;
+}
+
+function readRemediationQueue() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(KEYS.REMEDIATION_QUEUE) || '[]');
+    if (!Array.isArray(raw)) return [];
+    return raw.map(normalizeQueueRemediation).filter(Boolean);
+  } catch(e) {
+    return [];
+  }
+}
+
+function remediationMergeKey(rem) {
+  return rem.remediationKey || rem.id || [rem.source || rem.from || '', rem.cve || '', (rem.sourceFindingIdentityKeys || []).join('|'), (rem.assets || rem.targets || []).join('|')].join('::');
+}
+
+function addUniqueRemediation(list, remediation) {
+  const key = remediationMergeKey(remediation);
+  if (!list.find(r => remediationMergeKey(r) === key)) list.push(remediation);
+}
 // ── Navigation ─────────────────────────────────────────────────
 function navigateTo(page, param){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1279,10 +1371,12 @@ function renderDashboardHTML(dash){
 <div class="card">
 <div class="card-title">Top CVEs by Volume</div>
 <table><tr><th>CVE</th><th>Affected</th><th>Status</th></tr>`;
-  for(const [cve,cnt] of topCVE){
-    html+=`<tr class="clickable" onclick="viewFinding('${cve}')"><td class="mono text-link">${cve}</td><td>${cnt} endpoints</td><td>${CVE_NAMES[cve].substring(0,30)}...</td></tr>`;
-  }
-  html+=`</table></div></div>
+  for(const entry of topCVE){
+    const cve = Array.isArray(entry) ? entry[0] : entry.cve;
+    const cnt = Array.isArray(entry) ? entry[1] : entry.affected;
+    const cveName = CVE_NAMES[cve] || cve || 'Unknown';
+    html+=`<tr class="clickable" onclick="viewFinding('${cve}')"><td class="mono text-link">${cve}</td><td>${cnt} endpoints</td><td>${cveName.substring(0,30)}...</td></tr>`;
+  }  html+=`</table></div></div>
 <div class="card">
 <div class="card-title">Recent Deployments</div>
 <table><tr><th>Deployment</th><th>Package</th><th>Coverage</th><th>Status</th></tr>`;
@@ -1408,14 +1502,16 @@ function viewFinding(cveId){
 
 // ── Remediations ───────────────────────────────────────────────
 function renderRemediations(){
-  // Merge ShieldView auto-remediations
+  // Merge demo, canonical queue, and ShieldView auto-remediations without losing per-finding identity.
   const svAutoRems = autoCreateShieldViewRemediations();
-  const allRems = [...remediations];
+  const queueRems = readRemediationQueue();
+  const allRems = [];
+  remediations.forEach(r => addUniqueRemediation(allRems, r));
+  queueRems.forEach(r => addUniqueRemediation(allRems, r));
   svAutoRems.forEach(sr => {
-    if (!allRems.find(r => r.cve === sr.cve)) allRems.push(sr);
+    if (!allRems.find(r => r.cve === sr.cve)) addUniqueRemediation(allRems, sr);
   });
   window.__allRems = allRems;
-
   const depLookup = buildDeploymentLookup();
 
   let html=`
@@ -1863,8 +1959,7 @@ function renderPipeline(){
   const pendingRem = checkCrossToolQueue();
   const validatedRem = [];
   try { validatedRem.push(...JSON.parse(localStorage.getItem(KEYS.VALIDATED_REMEDIATIONS) || '[]')); } catch(e) {}
-  const queueRem = [];
-  try { queueRem.push(...JSON.parse(localStorage.getItem(KEYS.REMEDIATION_QUEUE) || '[]')); } catch(e) {}
+  const queueRem = readRemediationQueue();
 
   let html = `<div class="card" style="margin-bottom:24px">
     <div class="card-title">🔄 RemFlow Pipeline</div>
@@ -2282,27 +2377,16 @@ function pushToTheValidator(cveId) {
       showToast(`⚠️ ${cveId} is already queued in TheValidator`);
       return;
     }
-    const rem = remediations.find(r => r.cve === cveId);
-    queue.push({
-      cve: cveId,
-      name: CVE_NAMES[cveId] || cveId,
-      kb: KBS[cveId] || 'n/a',
-      targets: rem ? rem.targets : [],
-      targetCount: rem ? rem.targetCount : 0,
-      status: 'pending',
-      source: 'RemFlow',
-      queuedAt: new Date().toISOString(),
-      coverage: rem ? rem.coverage : 0,
-      rollbackCommand: rem ? (rem.rollbackCommand || null) : null,
-      rollbackUnavailableReason: rem ? (rem.rollbackUnavailableReason || null) : null
-    });
+    const rem = (window.__allRems || remediations).find(r => r.cve === cveId);
+    const item = buildCanonicalQueueItem(rem || { cve: cveId, name: CVE_NAMES[cveId] || cveId, kb: KBS[cveId] || 'n/a' }, 'RemFlow');
+    if (!isCanonicalRemediation(item)) throw new Error('canonical remediation validation failed');
+    queue.push(item);
     localStorage.setItem(KEYS.REMEDIATION_QUEUE, JSON.stringify(queue));
     showToast(`📤 ${cveId} pushed to TheValidator validation queue`);
   } catch(e) {
     showToast('⚠️ Failed to push: ' + e.message);
   }
 }
-
 function pushAllToTheValidator() {
   const allRems = window.__allRems || remediations;
   let count = 0;
@@ -2310,19 +2394,9 @@ function pushAllToTheValidator() {
     try {
       const queue = JSON.parse(localStorage.getItem(KEYS.REMEDIATION_QUEUE) || '[]');
       if (!queue.find(i => i.cve === r.cve && i.status === 'pending')) {
-        queue.push({
-          cve: r.cve,
-          name: r.name || CVE_NAMES[r.cve] || r.cve,
-          kb: r.kb || 'n/a',
-          targets: r.targets || [],
-          targetCount: r.targetCount || 0,
-          status: 'pending',
-          source: 'RemFlow',
-          queuedAt: new Date().toISOString(),
-          coverage: r.coverage || 0,
-          rollbackCommand: r.rollbackCommand || null,
-          rollbackUnavailableReason: r.rollbackUnavailableReason || null
-        });
+        const item = buildCanonicalQueueItem(r, 'RemFlow');
+        if (!isCanonicalRemediation(item)) return;
+        queue.push(item);
         localStorage.setItem(KEYS.REMEDIATION_QUEUE, JSON.stringify(queue));
         count++;
       }
@@ -2330,7 +2404,6 @@ function pushAllToTheValidator() {
   });
   showToast(`📤 Pushed ${count} remediations to TheValidator`);
 }
-
 // ── Assets ─────────────────────────────────────────────────────
 function renderAssets(){
   let html=`
@@ -2592,6 +2665,7 @@ function statusBadge(s){
   const map={
     'Completed':'badge-success','Success':'badge-success','Fixed':'badge-success',
     'In Progress':'badge-warning','Pending':'badge-warning','Queued':'badge-warning',
+    pending:'badge-warning',queued:'badge-warning',deployed:'badge-success',verified:'badge-success',blocked:'badge-critical',rolledBack:'badge-info',
     'Failed':'badge-critical','Rolled Back':'badge-medium',
     'Active':'badge-critical','Mitigated':'badge-info',
     'False Positive':'badge-medium','Risk Accepted':'badge-medium',
@@ -2993,12 +3067,11 @@ function updateRingPattern(ring, val) {
 
 // ── Cross-tool localStorage bridge ─────────────────────────────
 function checkCrossToolQueue() {
-  try { return JSON.parse(localStorage.getItem(KEYS.REMEDIATION_QUEUE) || '[]').filter(i => i.status === 'pending'); }
-  catch(e) { return []; }
+  return readRemediationQueue().filter(i => i.status === 'pending' || i.status === 'queued');
 }
 function markRemediationComplete(cveId) {
   try {
-    const queue = JSON.parse(localStorage.getItem(KEYS.REMEDIATION_QUEUE) || '[]');
+    const queue = readRemediationQueue();
     const updated = queue.map(i => i.cve === cveId ? {...i, status: 'deployed', completedAt: new Date().toISOString()} : i);
     localStorage.setItem(KEYS.REMEDIATION_QUEUE, JSON.stringify(updated));
     const validated = JSON.parse(localStorage.getItem(KEYS.VALIDATED_REMEDIATIONS) || '[]');
@@ -3089,7 +3162,7 @@ if (Test-Path $outPath) {
 $msuPath = "$env:TEMP\\${kb}.msu"
 
 # Option A: wusa.exe (built-in)
-Start-Process -FilePath "wusa.exe" -ArgumentList "`"$msuPath`" /quiet /norestart" -Wait -NoNewWindow
+Start-Process -FilePath "wusa.exe" -ArgumentList ('"' + $msuPath + '" /quiet /norestart') -Wait -NoNewWindow
 
 # Option B: DISM (for offline/servicing)
 # dism /online /add-package /packagepath:"$env:TEMP\\${kb}.msu"
@@ -3782,17 +3855,15 @@ function scheduleDeploymentFromCR(crId, note) {
   try {
     var queue = JSON.parse(localStorage.getItem(KEYS.REMEDIATION_QUEUE) || '[]');
     if (!queue.find(function(i) { return i.cve === cr.cve && i.status === 'pending'; })) {
-      queue.push({
+      var item = buildCanonicalQueueItem({
+        id: crId,
         cve: cr.cve,
         name: cr.solution || cr.cve,
-        kb: 'n/a',
-        targets: cr.affectedAssets || [],
-        targetCount: Array.isArray(cr.affectedAssets) ? cr.affectedAssets.length : 1,
-        status: 'pending',
-        source: 'RemFlow (CR: ' + crId + ')',
-        queuedAt: new Date().toISOString(),
+        affectedAssets: cr.affectedAssets || [],
         coverage: 0
-      });
+      }, 'RemFlow (CR: ' + crId + ')');
+      if (!isCanonicalRemediation(item)) throw new Error('canonical remediation validation failed');
+      queue.push(item);
       localStorage.setItem(KEYS.REMEDIATION_QUEUE, JSON.stringify(queue));
     }
   } catch(e) {}
@@ -3821,7 +3892,7 @@ function implementCR(crId) {
 
   // Mark queue items as deployed
   try {
-    var queue = JSON.parse(localStorage.getItem(KEYS.REMEDIATION_QUEUE) || '[]');
+    var queue = readRemediationQueue();
     queue.forEach(function(q) {
       if (q.cve === cr.cve) {
         q.status = 'deployed';
@@ -4109,6 +4180,156 @@ window.onerror = function(msg, file, line, col, err) {
       }, 400);
     }
   } catch(e) {}
+})();
+
+
+// ===== SUITE PIPELINE HEALTH UI =====
+(function(){
+  'use strict';
+  const APP_NAME = "RemFlow";
+  const CONTRACT_VERSION = '2.0.0';
+  const KEYS = {
+    CONTRACT_VERSION: 'security-tools:contract-version',
+    FINDINGS: 'security-tools:imported-findings',
+    REMEDIATION_QUEUE: 'security-tools:remediation-queue',
+    VALIDATED_REMEDIATIONS: 'security-tools:validated-remediations',
+    VERIFIED_QUEUE: 'security-tools:verified-queue',
+    LAST_REMEDIATION: 'security-tools:last-remediation',
+    LAST_LAUNCHPAD_PUSH: 'security-tools:last-launchpad-push'
+  };
+
+  function readCollection(key, issues) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && Array.isArray(parsed.rows)) return parsed.rows;
+      if (parsed && Array.isArray(parsed.data)) return parsed.data;
+      issues.push(key + ' is not an array collection');
+      return [];
+    } catch(e) {
+      issues.push(key + ' contains unreadable JSON');
+      return [];
+    }
+  }
+
+  function normalize(value) { return String(value || '').trim().toUpperCase(); }
+  function unique(values) { return Array.from(new Set((values || []).map(v => String(v || '').trim()).filter(Boolean))); }
+  function isCanonicalRemediation(item) {
+    return !!(item && typeof item.cve === 'string' && item.cve && typeof item.name === 'string' && item.name && Array.isArray(item.assets) && item.assets.length > 0 && ['pending','queued','deployed','verified','failed','blocked','rolledBack'].includes(item.status));
+  }
+  function findingIdentity(finding) {
+    if (!finding) return '';
+    if (finding.findingId || finding.id) return String(finding.findingId || finding.id);
+    return [finding.cve, finding.asset || finding.hostname, finding.port || '', finding.pluginId || '', finding.check || finding.name || ''].map(normalize).join('|');
+  }
+  function verificationMatched(record, findings) {
+    const identity = normalize(record.findingId || record.identityKey || record.sourceFindingId || '');
+    if (identity && findings.some(f => unique([f.findingId, f.id, findingIdentity(f)]).map(normalize).includes(identity))) return true;
+    const cve = normalize(record.cve);
+    const asset = normalize(record.asset || record.hostname || '');
+    return !!(cve && asset && findings.some(f => normalize(f.cve) === cve && normalize(f.asset || f.hostname || '') === asset));
+  }
+  function getState() {
+    const issues = [];
+    const storedVersion = localStorage.getItem(KEYS.CONTRACT_VERSION);
+    if (storedVersion && storedVersion !== CONTRACT_VERSION) issues.push('Contract version mismatch: stored ' + storedVersion + ', expected ' + CONTRACT_VERSION);
+    const findings = readCollection(KEYS.FINDINGS, issues);
+    const queue = readCollection(KEYS.REMEDIATION_QUEUE, issues);
+    const validated = readCollection(KEYS.VALIDATED_REMEDIATIONS, issues);
+    const verifiedQueue = readCollection(KEYS.VERIFIED_QUEUE, issues);
+    queue.forEach((item, index) => { if (!isCanonicalRemediation(item)) issues.push('Remediation queue item #' + (index + 1) + ' is not canonical'); });
+    verifiedQueue.forEach((record, index) => { if (!verificationMatched(record, findings)) issues.push('Verified queue item #' + (index + 1) + ' has no matching ShieldView finding'); });
+    return {
+      queue, validated, verifiedQueue, issues,
+      pending: queue.filter(i => i.status === 'pending').length,
+      queued: queue.filter(i => i.status === 'queued').length,
+      deployed: queue.filter(i => i.status === 'deployed').length,
+      verified: queue.filter(i => i.status === 'verified').length + validated.length + verifiedQueue.filter(i => i.result === 'pass').length,
+      failed: queue.filter(i => i.status === 'failed').length + verifiedQueue.filter(i => i.result === 'fail').length,
+      blocked: queue.filter(i => i.status === 'blocked').length,
+      rolledBack: queue.filter(i => i.status === 'rolledBack').length
+    };
+  }
+  function addStyles() {
+    if (document.getElementById('suite-health-style')) return;
+    const style = document.createElement('style');
+    style.id = 'suite-health-style';
+    style.textContent = '.suite-health{position:sticky;top:0;z-index:9999;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 14px;background:#101820;color:#e8eef4;border-bottom:1px solid rgba(255,255,255,.14);font:12px/1.3 system-ui,-apple-system,Segoe UI,sans-serif}.suite-health strong{font-size:12px;color:#fff}.suite-health-step{display:inline-flex;align-items:center;gap:6px;color:#c8d4df}.suite-health-pill{display:inline-flex;align-items:center;gap:4px;min-height:22px;padding:2px 8px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);color:#e8eef4;border-radius:999px}.suite-health-pill[data-hot="true"]{border-color:#f0b429;color:#ffe8a3}.suite-health-spacer{flex:1}.suite-health-btn{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;border-radius:6px;padding:4px 8px;cursor:pointer;font:12px system-ui}.suite-health-btn[data-issues="true"]{background:#4a1f26;border-color:#ff6b7a}.suite-issues{position:fixed;right:14px;top:48px;z-index:10000;width:min(420px,calc(100vw - 28px));max-height:60vh;overflow:auto;background:#111820;color:#e8eef4;border:1px solid rgba(255,255,255,.2);box-shadow:0 18px 48px rgba(0,0,0,.35);border-radius:8px;padding:12px;display:none}.suite-issues.open{display:block}.suite-issues h3{margin:0 0 8px;font-size:14px}.suite-issues-list{display:grid;gap:8px}.suite-issue{padding:8px;border-radius:6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#ffd7dd;font-size:12px}.suite-issue-empty{color:#a7f3c1}.suite-health + .suite-issues + *{scroll-margin-top:44px}';
+    document.head.appendChild(style);
+  }
+  function pill(label, value, hot) {
+    const el = document.createElement('span');
+    el.className = 'suite-health-pill';
+    if (hot) el.dataset.hot = 'true';
+    el.textContent = label + ': ' + value;
+    return el;
+  }
+  function render() {
+    addStyles();
+    let bar = document.getElementById('suite-health');
+    let drawer = document.getElementById('suite-issues');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'suite-health';
+      bar.className = 'suite-health';
+      drawer = document.createElement('div');
+      drawer.id = 'suite-issues';
+      drawer.className = 'suite-issues';
+      document.body.insertBefore(drawer, document.body.firstChild);
+      document.body.insertBefore(bar, drawer);
+    }
+    const state = getState();
+    bar.textContent = '';
+    const title = document.createElement('strong');
+    title.textContent = APP_NAME;
+    bar.appendChild(title);
+    const flow = document.createElement('span');
+    flow.className = 'suite-health-step';
+    flow.textContent = 'ShieldView -> RemFlow -> TheValidator -> ShieldView';
+    bar.appendChild(flow);
+    bar.appendChild(pill('pending', state.pending, state.pending > 0));
+    bar.appendChild(pill('queued', state.queued, state.queued > 0));
+    bar.appendChild(pill('deployed', state.deployed, state.deployed > 0));
+    bar.appendChild(pill('verified', state.verified, false));
+    bar.appendChild(pill('failed', state.failed, state.failed > 0));
+    bar.appendChild(pill('blocked', state.blocked, state.blocked > 0));
+    const spacer = document.createElement('span');
+    spacer.className = 'suite-health-spacer';
+    bar.appendChild(spacer);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'suite-health-btn';
+    btn.dataset.issues = state.issues.length > 0 ? 'true' : 'false';
+    btn.textContent = 'Pipeline Issues (' + state.issues.length + ')';
+    btn.onclick = function(){ drawer.classList.toggle('open'); };
+    bar.appendChild(btn);
+    drawer.textContent = '';
+    const heading = document.createElement('h3');
+    heading.textContent = 'Pipeline Issues';
+    drawer.appendChild(heading);
+    const list = document.createElement('div');
+    list.className = 'suite-issues-list';
+    if (state.issues.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'suite-issue-empty';
+      empty.textContent = 'No malformed queue records or unmatched verification records detected.';
+      list.appendChild(empty);
+    } else {
+      state.issues.forEach(function(issue) {
+        const item = document.createElement('div');
+        item.className = 'suite-issue';
+        item.textContent = issue;
+        list.appendChild(item);
+      });
+    }
+    drawer.appendChild(list);
+  }
+  window.__renderSuitePipelineHealth = render;
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', render); else render();
+  window.addEventListener('storage', function(e){ if (e.key && e.key.indexOf('security-tools:') === 0) render(); });
+  setInterval(render, 5000);
 })();
 </script>
 </body>
