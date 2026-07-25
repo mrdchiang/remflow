@@ -4037,6 +4037,24 @@ window.onerror = function(msg, file, line, col, err) {
   setTimeout(() => toast.remove(), 8000);
   return false;
 };
+// ════ URL PARAM FILTER SUPPORT ════
+(function applyURLParams() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const cve = params.get('cve');
+    if (cve) {
+      // Navigate to remediations page and filter by CVE
+      navigateTo('remediations');
+      setTimeout(() => {
+        const searchInput = document.getElementById('rem-search');
+        if (searchInput) {
+          searchInput.value = cve;
+          renderRemTable();
+        }
+      }, 400);
+    }
+  } catch(e) {}
+})();
 </script>
 </body>
 </html>
