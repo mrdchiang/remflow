@@ -594,6 +594,61 @@ tr:hover td{background:var(--bg-hover)}
 .ring-stat-full   .rs-val { color: var(--accent); }
 .ring-stat-blocked .rs-val { color: var(--critical); }
 
+/* ── Change Requests ─────────────────────────────────────── */
+.cr-status-draft       { background: var(--bg-hover); color: var(--text-muted); }
+.cr-status-submitted   { background: var(--accent-glow); color: var(--accent); }
+.cr-status-approved    { background: rgba(0,170,204,0.15); color: #00aacc; }
+.cr-status-scheduled   { background: var(--medium-bg); color: var(--medium); }
+.cr-status-implemented { background: var(--installed-bg); color: var(--installed); }
+
+/* ── Maintenance Window Picker ───────────────────────────── */
+.mw-modal-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.7); z-index: 3000;
+  display: flex; align-items: center; justify-content: center;
+}
+.mw-modal {
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 24px;
+  width: 560px; max-width: 95vw; max-height: 85vh; overflow-y: auto;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+}
+.mw-modal h3 { font-size: 16px; margin-bottom: 16px; }
+.mw-field { margin-bottom: 12px; }
+.mw-field label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; font-weight: 600; }
+.mw-field select, .mw-field input {
+  background: var(--bg-root); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text-primary);
+  padding: 6px 10px; font-size: 13px; font-family: inherit; width: 100%;
+}
+.mw-field select:focus, .mw-field input:focus { outline: none; border-color: var(--accent); }
+.mw-window-card {
+  background: var(--bg-hover); border: 1px solid var(--border-light);
+  border-radius: var(--radius); padding: 10px 14px;
+  margin-bottom: 8px; display: flex; align-items: center; gap: 10px; font-size: 13px;
+}
+.mw-window-card .mw-info { flex: 1; }
+.mw-window-card .mw-name { font-weight: 600; }
+.mw-window-card .mw-detail { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+.mw-blackout-card {
+  background: var(--critical-bg); border: 1px solid var(--critical);
+  border-radius: var(--radius); padding: 10px 14px;
+  margin-bottom: 8px; display: flex; align-items: center; gap: 10px; font-size: 13px;
+}
+.mw-blackout-card .mw-info { flex: 1; }
+.mw-warning {
+  background: var(--medium-bg); border: 1px solid var(--medium);
+  border-radius: var(--radius-sm); padding: 8px 12px; font-size: 12px;
+  color: var(--medium); margin: 8px 0; display: flex; align-items: center; gap: 8px;
+}
+.mw-ok {
+  background: var(--installed-bg); border: 1px solid var(--installed);
+  border-radius: var(--radius-sm); padding: 8px 12px; font-size: 12px;
+  color: var(--installed); margin: 8px 0; display: flex; align-items: center; gap: 8px;
+}
+.mw-inline-form { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 12px; }
+.mw-inline-form .mw-field { margin-bottom: 0; flex: 1; min-width: 100px; }
+
 @media(max-width:768px){
   .sidebar{position:fixed;left:-240px;transition:left .2s;height:100vh;z-index:100}
   .sidebar.open{left:0}
@@ -623,6 +678,7 @@ tr:hover td{background:var(--bg-hover)}
 <button class="nav-item" onclick="navigateTo('assets')" data-page="assets"><span class="icon">🖥️</span><span>Assets</span></button>
 <button class="nav-item" onclick="navigateTo('datasources')" data-page="datasources"><span class="icon">📥</span><span>Data Sources</span></button>
 <button class="nav-item" onclick="navigateTo('pipeline')" data-page="pipeline"><span class="icon">🔄</span><span>Pipeline</span></button>
+<button class="nav-item" onclick="navigateTo('change-requests')" data-page="change-requests"><span class="icon">📋</span><span>Change Requests</span></button>
 </div>
 <div class="sidebar-footer">
 <div class="avatar">DC</div>
@@ -652,6 +708,8 @@ tr:hover td{background:var(--bg-hover)}
 <div class="page" id="page-asset-detail"></div>
 <div class="page" id="page-datasources"></div>
 <div class="page" id="page-pipeline"></div>
+<div class="page" id="page-change-requests"></div>
+<div class="page" id="page-change-request-detail"></div>
 
 </div></div>
 
@@ -675,6 +733,12 @@ tr:hover td{background:var(--bg-hover)}
   </div>
 </div>
 
+<script type="module">
+import * as OllamaClient from './js/shared/ollama-client.js';
+import * as Prompts from './js/shared/prompts.js';
+window.OllamaClient = OllamaClient;
+window.Prompts = Prompts;
+</script>
 <script>
 // ── Storage Keys ──────────────────────────────────────────────────
 const KEYS = {
@@ -687,7 +751,10 @@ const KEYS = {
   VALIDATED_REMEDIATIONS: 'security-tools:validated-remediations',
   REMEDIATION_QUEUE:      'security-tools:remediation-queue',
   RING_CONFIG:            'remflow-ring-config',
-  RING_REMEDIATIONS:      'remflow-ring-remediations'
+  RING_REMEDIATIONS:      'remflow-ring-remediations',
+  CHANGE_REQUESTS:         'security-tools:change-requests',
+  MAINTENANCE_WINDOWS:     'remflow-maintenance-windows',
+  BLACKOUT_DATES:          'remflow-blackout-dates'
 };
 
 // ════ Contract Version Check ─────────────────────────────────(function(){  var CV = KEYS.CONTRACT_VERSION;  var VER = '1.0.0';  try {    var stored = localStorage.getItem(CV);    if (!stored) { localStorage.setItem(CV, VER); return; }    if (stored !== VER) {      var b = document.createElement('div');      b.style.cssText = 'background:#352215;color:#ff7722;padding:8px 16px;text-align:center;font-size:12px;font-family:monospace;cursor:pointer;z-index:99999;position:relative';      b.textContent = '⚠ Contract v' + VER + ' ≠ stored v' + stored + '. Some features may not work. Click to dismiss.';      b.onclick = function(){ b.remove(); localStorage.setItem(CV, VER); };      document.body.insertBefore(b, document.body.firstChild);    }  } catch(e) {}})();
@@ -953,7 +1020,9 @@ function navigateTo(page, param){
     'finding-detail':'CVE Detail','remediation-detail':'Remediation Detail',
     'deployment-detail':'Deployment Detail','create-remediation':'Create Remediation',
     'deploy-fix':'Deploy Fix','asset-detail':'Asset Detail',
-    pipeline:'Pipeline'
+    pipeline:'Pipeline',
+    'change-requests':'Change Requests',
+    'change-request-detail':'Change Request Detail'
   };
   document.getElementById('pageTitle').textContent=titles[page]||page;
   if(page==='dashboard')renderDashboard();
@@ -963,6 +1032,7 @@ function navigateTo(page, param){
   else if(page==='assets')renderAssets();
   else if(page==='datasources')renderDataSources();
   else if(page==='pipeline')renderPipeline();
+  else if(page==='change-requests')renderChangeRequests();
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebarOverlay').classList.remove('show');
   document.getElementById('page-'+page).scrollTop=0;
@@ -3237,9 +3307,7 @@ function sendAIMessage() {
   // Show typing indicator
   const typing = showAITyping();
 
-  const systemPrompt = aiContext
-    ? `You are a Windows systems engineer. Help remediate this vulnerability. Context: CVE: ${aiContext.cve}, Name: ${aiContext.name}, Severity: ${aiContext.severity}, OS: ${aiContext.os || 'Windows Server 2022'}. Solution: ${aiContext.solution || 'Apply vendor patch'}. ${aiContext.extra || ''}`
-    : 'You are a Windows systems engineer. Help remediate vulnerabilities.';
+  const { system: systemPrompt } = window.Prompts.REMEDIATION_CHAT(aiContext || {});
 
   callOllama(systemPrompt, text).then(response => {
     removeAITyping(typing);
@@ -3274,26 +3342,7 @@ function sendAIPrompt(context) {
 
   const typing = showAITyping();
 
-  const systemPrompt = `You are a senior Windows systems engineer with 20 years experience in vulnerability remediation. You work in an enterprise environment with Windows Server, Windows 10/11, and Linux servers.
-
-Analyze this vulnerability and provide:
-1. **Root Cause Assessment** — What is the vulnerability and how does it work?
-2. **Step-by-Step PowerShell Remediation** — Exact PowerShell commands to fix it
-3. **Verification Steps** — How to confirm the fix was applied
-4. **Rollback Plan** — How to undo the change if needed
-
-Context:
-- CVE: ${context.cve}
-- Name/Description: ${context.name || 'Unknown'}
-- Severity: ${context.severity || 'Medium'}
-- Affected OS: ${context.os || 'Windows Server 2022'}
-- Vendor Solution: ${context.solution || 'Apply vendor patch/update'}
-- KB Reference: ${context.kb || 'None'}
-${context.extra || ''}
-
-Be specific with PowerShell cmdlets, registry paths, service names, and verification commands.`;
-
-  const userPrompt = `Generate a complete remediation plan for ${context.cve}.`;
+  const { system: systemPrompt, user: userPrompt } = window.Prompts.REMEDIATION_PLAN(context);
 
   callOllama(systemPrompt, userPrompt).then(response => {
     removeAITyping(typing);
@@ -3354,41 +3403,10 @@ function formatAIResponse(text) {
 }
 
 async function callOllama(systemPrompt, userPrompt) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60000);
-
-  try {
-    const resp = await fetch('http://localhost:11434/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama3.2',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        stream: false,
-        options: { temperature: 0.3, num_predict: 2048 }
-      }),
-      signal: controller.signal
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!resp.ok) {
-      throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
-    }
-
-    const data = await resp.json();
-    return data.message?.content || data.response || JSON.stringify(data);
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
-  }
+  return window.OllamaClient.callOllama(systemPrompt, userPrompt);
 }
 
 function generateOfflineGuidance(ctx) {
-  if (!ctx) return '';
   const cve = ctx.cve || '';
   const sev = (ctx.severity || '').toLowerCase();
   const os = (ctx.os || '').toLowerCase();
@@ -3415,6 +3433,568 @@ function generateOfflineGuidance(ctx) {
   return guidance;
 }
 
+// ════ Change Request System ═══════════════════════════════════
+function getChangeRequests() {
+  try { return JSON.parse(localStorage.getItem(KEYS.CHANGE_REQUESTS) || '[]'); }
+  catch(e) { return []; }
+}
+function saveChangeRequests(crs) {
+  localStorage.setItem(KEYS.CHANGE_REQUESTS, JSON.stringify(crs));
+}
+
+// ShieldView writes draft CRs to this collection
+function createChangeRequest(cve, solution, affectedAssets, severity) {
+  const crs = getChangeRequests();
+  const cr = {
+    id: 'CR-' + (1000 + crs.length + 1),
+    cve: cve,
+    solution: solution || 'Apply vendor patch',
+    affectedAssets: affectedAssets || [],
+    severity: severity || 'Medium',
+    draftedAt: new Date().toISOString(),
+    status: 'draft'
+  };
+  crs.push(cr);
+  saveChangeRequests(crs);
+  return cr;
+}
+
+function renderChangeRequests() {
+  const crs = getChangeRequests();
+  window.__allCRs = crs;
+
+  var html = `<div class="filter-group">
+    <input class="search-input" id="cr-search" placeholder="Search CVE or solution..." oninput="renderCRTable()">
+    <select class="filter-select" id="cr-status" onchange="renderCRTable()">
+      <option value="all">All Statuses</option>
+      <option value="draft">Draft</option>
+      <option value="submitted">Submitted</option>
+      <option value="approved">Approved</option>
+      <option value="scheduled">Scheduled</option>
+      <option value="implemented">Implemented</option>
+    </select>
+    <span class="ml-auto" style="font-size:12px;color:var(--text-muted)">${crs.length} change requests</span>
+  </div>
+  <div class="btn-group">
+    <button class="btn btn-primary" onclick="renderMaintenanceWindowEditor()">⚙️ Maintenance Windows</button>
+    <button class="btn btn-sm" onclick="loadDemoChangeRequests()">📋 Load Demo CRs</button>
+    <button class="btn btn-sm btn-ghost" onclick="if(confirm('Clear all change requests?')){localStorage.removeItem(KEYS.CHANGE_REQUESTS);renderChangeRequests();}">🗑️ Clear All</button>
+  </div>
+  <div style="overflow-x:auto;margin-top:12px"><table id="cr-table">
+  <tr><th>ID</th><th>CVE</th><th>Solution</th><th>Assets</th><th>Severity</th><th>Status</th><th>Drafted</th></tr>
+  <tbody id="cr-tbody"></tbody></table></div>`;
+
+  document.getElementById('page-change-requests').innerHTML = html;
+  renderCRTable();
+}
+
+function renderCRTable() {
+  var q = document.getElementById('cr-search')?.value?.toLowerCase() || '';
+  var st = document.getElementById('cr-status')?.value || 'all';
+  var all = window.__allCRs || [];
+  var filtered = all.filter(function(cr) {
+    if (st !== 'all' && cr.status !== st) return false;
+    if (!q) return true;
+    return (cr.cve||'').toLowerCase().indexOf(q) >= 0 ||
+           (cr.solution||'').toLowerCase().indexOf(q) >= 0 ||
+           (cr.id||'').toLowerCase().indexOf(q) >= 0;
+  });
+
+  function crStatusBadge(s) {
+    var cls = {'draft':'cr-status-draft','submitted':'cr-status-submitted','approved':'cr-status-approved','scheduled':'cr-status-scheduled','implemented':'cr-status-implemented'};
+    return '<span class="badge ' + (cls[s]||'badge-info') + '">' + (s||'draft') + '</span>';
+  }
+  function sevClassCR(s) { return (s||'medium').toLowerCase(); }
+
+  var rows = filtered.map(function(cr) {
+    var assetCount = Array.isArray(cr.affectedAssets) ? cr.affectedAssets.length : (cr.affectedAssets || 0);
+    var drafted = cr.draftedAt ? cr.draftedAt.slice(0,16).replace('T',' ') : '—';
+    return '<tr class="clickable" onclick="viewChangeRequest(\'' + cr.id + '\')">' +
+      '<td class="mono text-link">' + (cr.id||'—') + '</td>' +
+      '<td class="mono">' + (cr.cve||'—') + '</td>' +
+      '<td>' + ((cr.solution||'').substring(0,40)) + '...</td>' +
+      '<td>' + assetCount + '</td>' +
+      '<td><span class="badge badge-' + sevClassCR(cr.severity) + '">' + (cr.severity||'Medium') + '</span></td>' +
+      '<td>' + crStatusBadge(cr.status) + '</td>' +
+      '<td style="font-size:12px;color:var(--text-muted)">' + drafted + '</td>' +
+    '</tr>';
+  }).join('');
+
+  document.getElementById('cr-tbody').innerHTML = rows || '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">No change requests found. Load demo data or create from ShieldView findings.</td></tr>';
+}
+
+function viewChangeRequest(id) {
+  var crs = getChangeRequests();
+  var cr = crs.find(function(x) { return x.id === id; });
+  if (!cr) return;
+
+  function crStatusBadge(s) {
+    var cls = {'draft':'cr-status-draft','submitted':'cr-status-submitted','approved':'cr-status-approved','scheduled':'cr-status-scheduled','implemented':'cr-status-implemented'};
+    return '<span class="badge ' + (cls[s]||'badge-info') + '">' + (s||'draft') + '</span>';
+  }
+  function sevClassCR(s) { return (s||'medium').toLowerCase(); }
+
+  var assetCount = Array.isArray(cr.affectedAssets) ? cr.affectedAssets.length : (cr.affectedAssets || 0);
+  var drafted = cr.draftedAt ? cr.draftedAt.slice(0,16).replace('T',' ') : '—';
+
+  // Determine available actions based on status
+  var actions = '<div class="btn-group">';
+  if (cr.status === 'draft') {
+    actions += '<button class="btn btn-sm btn-primary" onclick="advanceCRStatus(\'' + cr.id + '\',\'submitted\')">📤 Submit for Approval</button>';
+  } else if (cr.status === 'submitted') {
+    actions += '<button class="btn btn-sm btn-primary" onclick="advanceCRStatus(\'' + cr.id + '\',\'approved\')">✅ Approve</button>';
+    actions += '<button class="btn btn-sm" onclick="advanceCRStatus(\'' + cr.id + '\',\'draft\')">↩ Return to Draft</button>';
+  } else if (cr.status === 'approved') {
+    actions += '<button class="btn btn-sm btn-primary" onclick="openScheduleDeployment(\'' + cr.id + '\')">📅 Schedule Deployment</button>';
+    actions += '<button class="btn btn-sm" onclick="advanceCRStatus(\'' + cr.id + '\',\'submitted\')">↩ Return to Submitted</button>';
+  } else if (cr.status === 'scheduled') {
+    actions += '<button class="btn btn-sm btn-primary" onclick="implementCR(\'' + cr.id + '\')">🚀 Implement Deployment</button>';
+    actions += '<button class="btn btn-sm" onclick="advanceCRStatus(\'' + cr.id + '\',\'approved\')">↩ Return to Approved</button>';
+  } else if (cr.status === 'implemented') {
+    actions += '<span style="color:var(--installed);font-weight:600;font-size:13px">✅ Implemented</span>';
+  }
+  actions += '<button class="btn btn-sm btn-ghost" onclick="if(confirm(\'Delete this CR?\')){deleteCR(\'' + cr.id + '\');navigateTo(\'change-requests\')}">🗑️ Delete</button>';
+  actions += '</div>';
+
+  // Affected assets table
+  var assetsHTML = '';
+  if (Array.isArray(cr.affectedAssets) && cr.affectedAssets.length > 0) {
+    assetsHTML = '<div class="card"><div class="card-title">Affected Assets (' + cr.affectedAssets.length + ')</div><div style="overflow-x:auto"><table><tr><th>Asset</th></tr>';
+    cr.affectedAssets.forEach(function(a) {
+      assetsHTML += '<tr><td class="mono">' + (a||'—') + '</td></tr>';
+    });
+    assetsHTML += '</table></div></div>';
+  }
+
+  var html = `<button class="btn btn-sm btn-ghost" onclick="navigateTo('change-requests')">← Back to Change Requests</button>
+<div class="card" style="margin-top:12px">
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+  <h2 style="font-size:18px">${cr.id}</h2>
+  ${crStatusBadge(cr.status)}
+  <span class="badge badge-${sevClassCR(cr.severity)}" style="margin-left:4px">${cr.severity||'Medium'}</span>
+</div>
+<div class="grid-2" style="margin-bottom:12px">
+  <div><span style="color:var(--text-muted);font-size:12px">CVE</span><br><span class="mono">${cr.cve||'—'}</span></div>
+  <div><span style="color:var(--text-muted);font-size:12px">Solution</span><br>${(cr.solution||'—').substring(0,50)}</div>
+  <div><span style="color:var(--text-muted);font-size:12px">Affected Assets</span><br>${assetCount}</div>
+  <div><span style="color:var(--text-muted);font-size:12px">Severity</span><br>${cr.severity||'Medium'}</div>
+  <div><span style="color:var(--text-muted);font-size:12px">Drafted</span><br>${drafted}</div>
+  <div><span style="color:var(--text-muted);font-size:12px">Status</span><br>${crStatusBadge(cr.status)}</div>
+</div>
+<div class="card" style="margin-bottom:12px">
+  <div class="card-title">Solution Details</div>
+  <p style="font-size:13px;color:var(--text-secondary);white-space:pre-wrap">${cr.solution||'No solution specified'}</p>
+</div>
+${actions}
+</div>
+${assetsHTML}`;
+
+  document.getElementById('page-change-request-detail').innerHTML = html;
+  navigateTo('change-request-detail');
+}
+
+function advanceCRStatus(id, newStatus) {
+  var crs = getChangeRequests();
+  var idx = crs.findIndex(function(x) { return x.id === id; });
+  if (idx < 0) return;
+  crs[idx].status = newStatus;
+  saveChangeRequests(crs);
+  showToast('Change Request ' + id + ' → ' + newStatus);
+  viewChangeRequest(id);
+}
+
+function deleteCR(id) {
+  var crs = getChangeRequests().filter(function(x) { return x.id !== id; });
+  saveChangeRequests(crs);
+  showToast('Deleted ' + id);
+}
+
+// CR → Deployment conversion
+function openScheduleDeployment(crId) {
+  var crs = getChangeRequests();
+  var cr = crs.find(function(x) { return x.id === crId; });
+  if (!cr) return;
+
+  var windows = getMaintenanceWindows();
+  var blackouts = getBlackoutDates();
+
+  // Build modal HTML
+  var overlay = document.createElement('div');
+  overlay.className = 'mw-modal-overlay';
+  overlay.id = 'mw-modal-overlay';
+
+  var modal = document.createElement('div');
+  modal.className = 'mw-modal';
+
+  // Check if current time is in a maintenance window or blackout
+  var now = new Date();
+  var dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var todayName = dayNames[now.getDay()];
+  var timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+
+  var inWindow = false;
+  var windowName = '';
+  windows.forEach(function(w) {
+    if (w.dayOfWeek === todayName && timeStr >= w.startTime && timeStr <= w.endTime) {
+      inWindow = true;
+      windowName = w.name;
+    }
+  });
+
+  var inBlackout = false;
+  var blackoutReason = '';
+  var nowStr = now.toISOString().slice(0,10);
+  blackouts.forEach(function(b) {
+    if (nowStr >= (b.start||'').slice(0,10) && nowStr <= (b.end||'').slice(0,10)) {
+      inBlackout = true;
+      blackoutReason = b.reason || 'Blackout period';
+    }
+  });
+
+  var statusHTML = '';
+  if (inBlackout) {
+    statusHTML = '<div class="mw-warning">⚠️ <strong>Blackout active:</strong> ' + blackoutReason + ' — deploying outside maintenance window</div>';
+  } else if (inWindow) {
+    statusHTML = '<div class="mw-ok">✅ Inside maintenance window: <strong>' + windowName + '</strong> (' + todayName + ' ' + timeStr + ')</div>';
+  } else {
+    statusHTML = '<div class="mw-warning">⚠️ Outside maintenance windows. You can still schedule, but it\'s not recommended.</div>';
+  }
+
+  // Build window selector
+  var windowOptions = windows.map(function(w) {
+    return '<option value="' + w.name + '">' + w.name + ' — ' + w.dayOfWeek + ' ' + w.startTime + '-' + w.endTime + ' (' + (w.timezone||'UTC') + ')</option>';
+  }).join('');
+
+  modal.innerHTML = `<h3>📅 Schedule Deployment for ${cr.cve}</h3>
+  <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">Select a maintenance window and schedule this change request for deployment.</p>
+  ${statusHTML}
+  <div class="mw-field">
+    <label>Maintenance Window</label>
+    <select id="mw-select">${windowOptions || '<option value="">No windows defined</option>'}</select>
+  </div>
+  <div class="mw-field">
+    <label>Deployment Note (optional)</label>
+    <input type="text" id="mw-note" placeholder="e.g., Patch for CVE-2026-...">
+  </div>
+  <div style="display:flex;gap:8px;margin-top:16px">
+    <button class="btn btn-primary" id="mw-schedule-btn">✅ Schedule Deployment</button>
+    <button class="btn" id="mw-cancel-btn">Cancel</button>
+    <button class="btn btn-sm btn-ghost" style="margin-left:auto" onclick="closeMWModal();renderMaintenanceWindowEditor()">⚙️ Manage Windows</button>
+  </div>`;
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) closeMWModal(); });
+  document.getElementById('mw-cancel-btn').addEventListener('click', closeMWModal);
+  document.getElementById('mw-schedule-btn').addEventListener('click', function() {
+    var note = document.getElementById('mw-note').value || '';
+    scheduleDeploymentFromCR(crId, note);
+    closeMWModal();
+  });
+}
+
+function closeMWModal() {
+  var overlay = document.getElementById('mw-modal-overlay');
+  if (overlay) overlay.remove();
+}
+
+function scheduleDeploymentFromCR(crId, note) {
+  var crs = getChangeRequests();
+  var cr = crs.find(function(x) { return x.id === crId; });
+  if (!cr) return;
+
+  // Advance CR status to scheduled
+  cr.status = 'scheduled';
+  saveChangeRequests(crs);
+
+  // Create deployment entry
+  var depId = 'DEP-' + (2000 + deployments.length + 1);
+  deployments.push({
+    id: depId,
+    package: cr.cve + ' Fix',
+    type: 'Change Request Deployment',
+    targetCount: Array.isArray(cr.affectedAssets) ? cr.affectedAssets.length : 1,
+    successRate: 0,
+    start: new Date().toISOString().slice(0,16).replace('T',' '),
+    end: '-',
+    status: 'In Progress',
+    fromCR: crId,
+    note: note
+  });
+
+  // Also push to remediation queue
+  try {
+    var queue = JSON.parse(localStorage.getItem(KEYS.REMEDIATION_QUEUE) || '[]');
+    if (!queue.find(function(i) { return i.cve === cr.cve && i.status === 'pending'; })) {
+      queue.push({
+        cve: cr.cve,
+        name: cr.solution || cr.cve,
+        kb: 'n/a',
+        targets: cr.affectedAssets || [],
+        targetCount: Array.isArray(cr.affectedAssets) ? cr.affectedAssets.length : 1,
+        status: 'pending',
+        source: 'RemFlow (CR: ' + crId + ')',
+        queuedAt: new Date().toISOString(),
+        coverage: 0
+      });
+      localStorage.setItem(KEYS.REMEDIATION_QUEUE, JSON.stringify(queue));
+    }
+  } catch(e) {}
+
+  showToast('📅 ' + crId + ' scheduled for deployment (' + depId + ')');
+  viewChangeRequest(crId);
+}
+
+function implementCR(crId) {
+  var crs = getChangeRequests();
+  var cr = crs.find(function(x) { return x.id === crId; });
+  if (!cr) return;
+
+  // Mark as implemented
+  cr.status = 'implemented';
+  saveChangeRequests(crs);
+
+  // Mark any associated deployments as completed
+  deployments.forEach(function(d) {
+    if (d.fromCR === crId) {
+      d.status = 'Completed';
+      d.end = new Date().toISOString().slice(0,16).replace('T',' ');
+      d.successRate = randInt(92, 100);
+    }
+  });
+
+  // Mark queue items as deployed
+  try {
+    var queue = JSON.parse(localStorage.getItem(KEYS.REMEDIATION_QUEUE) || '[]');
+    queue.forEach(function(q) {
+      if (q.cve === cr.cve) {
+        q.status = 'deployed';
+        q.completedAt = new Date().toISOString();
+      }
+    });
+    localStorage.setItem(KEYS.REMEDIATION_QUEUE, JSON.stringify(queue));
+  } catch(e) {}
+
+  showToast('🚀 ' + crId + ' implemented successfully');
+  viewChangeRequest(crId);
+}
+
+// ════ Maintenance Windows ═══════════════════════════════════
+function getMaintenanceWindows() {
+  try { return JSON.parse(localStorage.getItem(KEYS.MAINTENANCE_WINDOWS) || '[]'); }
+  catch(e) { return []; }
+}
+function saveMaintenanceWindows(windows) {
+  localStorage.setItem(KEYS.MAINTENANCE_WINDOWS, JSON.stringify(windows));
+}
+
+function getBlackoutDates() {
+  try { return JSON.parse(localStorage.getItem(KEYS.BLACKOUT_DATES) || '[]'); }
+  catch(e) { return []; }
+}
+function saveBlackoutDates(blackouts) {
+  localStorage.setItem(KEYS.BLACKOUT_DATES, JSON.stringify(blackouts));
+}
+
+function renderMaintenanceWindowEditor() {
+  var windows = getMaintenanceWindows();
+  var blackouts = getBlackoutDates();
+  var dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+  // Build overlay + modal
+  var overlay = document.createElement('div');
+  overlay.className = 'mw-modal-overlay';
+  overlay.id = 'mw-editor-overlay';
+
+  var modal = document.createElement('div');
+  modal.className = 'mw-modal';
+
+  var windowsHTML = '';
+  if (windows.length === 0) {
+    windowsHTML = '<div style="padding:12px;text-align:center;color:var(--text-muted);font-size:13px">No maintenance windows defined. Add one below.</div>';
+  } else {
+    windows.forEach(function(w) {
+      windowsHTML += '<div class="mw-window-card">' +
+        '<div class="mw-info">' +
+          '<div class="mw-name">' + (w.name||'Unnamed') + '</div>' +
+          '<div class="mw-detail">' + (w.dayOfWeek||'') + ' ' + (w.startTime||'') + ' – ' + (w.endTime||'') + ' (' + (w.timezone||'UTC') + ')</div>' +
+        '</div>' +
+        '<button class="btn btn-sm btn-ghost" onclick="deleteMaintenanceWindow(\'' + (w.name||'').replace(/'/g,"\\'") + '\');closeMWEditor();renderMaintenanceWindowEditor()">🗑️</button>' +
+      '</div>';
+    });
+  }
+
+  var blackoutsHTML = '';
+  if (blackouts.length === 0) {
+    blackoutsHTML = '<div style="padding:12px;text-align:center;color:var(--text-muted);font-size:13px">No blackout dates defined.</div>';
+  } else {
+    blackouts.forEach(function(b) {
+      blackoutsHTML += '<div class="mw-blackout-card">' +
+        '<div class="mw-info">' +
+          '<div style="font-weight:600;color:var(--critical)">' + (b.start||'').slice(0,10) + ' → ' + (b.end||'').slice(0,10) + '</div>' +
+          '<div style="font-size:11px;color:var(--text-muted)">' + (b.reason||'No reason') + '</div>' +
+        '</div>' +
+        '<button class="btn btn-sm btn-ghost" onclick="deleteBlackoutDate(' + blackouts.indexOf(b) + ');closeMWEditor();renderMaintenanceWindowEditor()">🗑️</button>' +
+      '</div>';
+    });
+  }
+
+  modal.innerHTML = `<h3>⚙️ Maintenance Windows & Blackout Dates</h3>
+  <div style="margin-bottom:20px">
+    <div class="card-title" style="margin-bottom:8px">📅 Recurring Maintenance Windows</div>
+    ${windowsHTML}
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px">Add Window</div>
+      <div class="mw-inline-form">
+        <div class="mw-field">
+          <label>Name</label>
+          <input type="text" id="mw-add-name" placeholder="e.g., Patch Tuesday">
+        </div>
+        <div class="mw-field">
+          <label>Day</label>
+          <select id="mw-add-day">${dayNames.map(function(d){return '<option>'+d+'</option>';}).join('')}</select>
+        </div>
+        <div class="mw-field">
+          <label>Start</label>
+          <input type="time" id="mw-add-start" value="02:00">
+        </div>
+        <div class="mw-field">
+          <label>End</label>
+          <input type="time" id="mw-add-end" value="05:00">
+        </div>
+        <div class="mw-field">
+          <label>TZ</label>
+          <input type="text" id="mw-add-tz" value="UTC" style="width:60px">
+        </div>
+        <button class="btn btn-sm btn-primary" onclick="addMaintenanceWindowUI();setTimeout(function(){closeMWEditor();renderMaintenanceWindowEditor()},200)">+ Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:20px">
+    <div class="card-title" style="margin-bottom:8px;color:var(--critical)">🚫 Blackout Dates</div>
+    ${blackoutsHTML}
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px">Add Blackout</div>
+      <div class="mw-inline-form">
+        <div class="mw-field">
+          <label>Start Date</label>
+          <input type="date" id="bo-add-start">
+        </div>
+        <div class="mw-field">
+          <label>End Date</label>
+          <input type="date" id="bo-add-end">
+        </div>
+        <div class="mw-field">
+          <label>Reason</label>
+          <input type="text" id="bo-add-reason" placeholder="e.g., Year-end freeze">
+        </div>
+        <button class="btn btn-sm btn-primary" onclick="addBlackoutDateUI();setTimeout(function(){closeMWEditor();renderMaintenanceWindowEditor()},200)">+ Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px">
+    <button class="btn" onclick="closeMWEditor()">Close</button>
+    <button class="btn btn-sm btn-ghost" onclick="loadDemoMaintenanceWindows();closeMWEditor();renderMaintenanceWindowEditor()">📋 Load Demo Windows</button>
+  </div>`;
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) closeMWEditor(); });
+}
+
+function closeMWEditor() {
+  var overlay = document.getElementById('mw-editor-overlay');
+  if (overlay) overlay.remove();
+}
+
+function addMaintenanceWindowUI() {
+  var name = document.getElementById('mw-add-name').value.trim();
+  var day = document.getElementById('mw-add-day').value;
+  var start = document.getElementById('mw-add-start').value;
+  var end = document.getElementById('mw-add-end').value;
+  var tz = document.getElementById('mw-add-tz').value.trim() || 'UTC';
+  if (!name || !day || !start || !end) { showToast('⚠️ All fields required'); return; }
+  var windows = getMaintenanceWindows();
+  // Replace existing window with same name
+  var idx = windows.findIndex(function(w) { return w.name === name; });
+  if (idx >= 0) windows.splice(idx, 1);
+  windows.push({ name: name, dayOfWeek: day, startTime: start, endTime: end, timezone: tz });
+  saveMaintenanceWindows(windows);
+  showToast('✅ Maintenance window added: ' + name);
+}
+
+function deleteMaintenanceWindow(name) {
+  var windows = getMaintenanceWindows().filter(function(w) { return w.name !== name; });
+  saveMaintenanceWindows(windows);
+  showToast('Deleted maintenance window: ' + name);
+}
+
+function addBlackoutDateUI() {
+  var start = document.getElementById('bo-add-start').value;
+  var end = document.getElementById('bo-add-end').value;
+  var reason = document.getElementById('bo-add-reason').value.trim();
+  if (!start || !end) { showToast('⚠️ Start and end dates required'); return; }
+  var blackouts = getBlackoutDates();
+  blackouts.push({ start: start, end: end, reason: reason || 'No reason' });
+  saveBlackoutDates(blackouts);
+  showToast('✅ Blackout date added');
+}
+
+function deleteBlackoutDate(idx) {
+  var blackouts = getBlackoutDates();
+  blackouts.splice(idx, 1);
+  saveBlackoutDates(blackouts);
+  showToast('Deleted blackout date');
+}
+
+// ════ Demo Data Loaders ════════════════════════════════════
+function loadDemoChangeRequests() {
+  var crs = getChangeRequests();
+  if (crs.length > 0) {
+    if (!confirm('Demo data will be appended to existing ' + crs.length + ' CRs. Continue?')) return;
+  }
+  var demos = [];
+  for (var i = 0; i < 8; i++) {
+    var cve = pick(CVE_IDS);
+    var assetCount = randInt(3, 15);
+    var assets = [];
+    for (var j = 0; j < assetCount; j++) assets.push(pick(HOSTS));
+    demos.push({
+      id: 'CR-' + (1000 + crs.length + i + 1),
+      cve: cve,
+      solution: CVE_NAMES[cve] + ' — Apply ' + (KBS[cve]||'vendor patch') + ' to ' + assetCount + ' affected assets',
+      affectedAssets: [...new Set(assets)],
+      severity: pick(SEVS),
+      draftedAt: ago(randInt(1, 168)),
+      status: pick(['draft','draft','draft','submitted','submitted','approved','approved','scheduled'])
+    });
+  }
+  crs.push.apply(crs, demos);
+  saveChangeRequests(crs);
+  renderChangeRequests();
+  showToast('📋 Loaded ' + demos.length + ' demo change requests');
+}
+
+function loadDemoMaintenanceWindows() {
+  var windows = [];
+  windows.push({ name: 'Patch Tuesday', dayOfWeek: 'Tuesday', startTime: '02:00', endTime: '05:00', timezone: 'UTC' });
+  windows.push({ name: 'Weekend Window', dayOfWeek: 'Saturday', startTime: '22:00', endTime: '06:00', timezone: 'UTC' });
+  windows.push({ name: 'Dev/Test Daily', dayOfWeek: 'Monday', startTime: '18:00', endTime: '22:00', timezone: 'EST' });
+  windows.push({ name: 'APAC Overnight', dayOfWeek: 'Wednesday', startTime: '00:00', endTime: '04:00', timezone: 'Asia/Singapore' });
+  saveMaintenanceWindows(windows);
+
+  var blackouts = [];
+  blackouts.push({ start: '2026-12-20', end: '2027-01-05', reason: 'Year-end change freeze' });
+  blackouts.push({ start: '2026-11-25', end: '2026-11-30', reason: 'Thanksgiving blackout' });
+  saveBlackoutDates(blackouts);
+
+  showToast('📋 Loaded ' + windows.length + ' maintenance windows and ' + blackouts.length + ' blackout dates');
+}
+
 // Init — check hash first for deep links
 function handleHash(){
   const hash=location.hash.replace(/^#\/?/,'').split('/');
@@ -3435,7 +4015,7 @@ navigateTo=function(page,param){
   _origNav(page,param);
   if(_settingHash) return;
   _settingHash=true;
-  const hashMap={'finding-detail':'finding','deployment-detail':'deployment','remediation-detail':'remediation','create-remediation':'create-remediation','deploy-fix':'deploy-fix','asset-detail':'asset','datasources':'datasources','pipeline':'pipeline'};
+  const hashMap={'finding-detail':'finding','deployment-detail':'deployment','remediation-detail':'remediation','create-remediation':'create-remediation','deploy-fix':'deploy-fix','asset-detail':'asset','datasources':'datasources','pipeline':'pipeline','change-requests':'change-requests','change-request-detail':'change-request-detail'};
   const hashPage=hashMap[page]||page;
   try{
     if(param) history.replaceState(null,'','#/'+hashPage+'/'+encodeURIComponent(param));
