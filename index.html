@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
 <title>RemFlow — Remediation Intelligence</title>
 <style>
 :root {
@@ -17,6 +17,9 @@
   --high: #ff7722; --high-bg: #352215;
   --medium: #e6b800; --medium-bg: #353015;
   --low: #22cc66; --low-bg: #123020;
+  --installed: #22cc66; --installed-bg: #123020;
+  --pending: #ff7722; --pending-bg: #352215;
+  --failed: #ff4444; --failed-bg: #351520;
   --radius-sm: 6px; --radius: 8px; --radius-lg: 12px;
   --shadow: 0 2px 12px rgba(0,0,0,0.4);
   --sidebar-w: 240px; --topbar-h: 56px;
@@ -30,6 +33,7 @@
   --text-primary: #0c1225; --text-secondary: #556888; --text-muted: #8899bb;
   --accent: #0052cc; --accent-dim: #003d99;
   --critical-bg: #fff0f0; --high-bg: #fff4ee; --medium-bg: #fffbe6; --low-bg: #eefff4;
+  --installed-bg: #eefff4; --pending-bg: #fff4ee; --failed-bg: #fff0f0;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -91,7 +95,9 @@ tr:hover td{background:var(--bg-hover)}
 .badge-success{background:#123020;color:#22cc66}
 .badge-warning{background:#353015;color:#e6b800}
 .badge-info{background:#102830;color:#00aacc}
-.badge-pending{background:#352215;color:#ff7722}
+.badge-pending{background:var(--pending-bg);color:var(--pending)}
+.badge-installed{background:var(--installed-bg);color:var(--installed)}
+.badge-failed{background:var(--failed-bg);color:var(--failed)}
 .btn{padding:8px 16px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-primary);font-size:13px;font-weight:500;transition:all .15s}
 .btn:hover{border-color:var(--accent);background:var(--bg-hover)}
 .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
@@ -119,6 +125,59 @@ tr:hover td{background:var(--bg-hover)}
 .progress-fill{height:100%;border-radius:4px;transition:width .3s}
 .clickable{cursor:pointer}
 .clickable:hover td{background:var(--bg-hover)!important}
+
+/* ── Data Sources: Drop Zones ──────────────────────────── */
+.drop-zone{
+  border:2px dashed var(--border-light);
+  border-radius:var(--radius-lg);
+  padding:40px 20px;
+  text-align:center;
+  background:var(--bg-elevated);
+  transition:all .2s;
+  cursor:pointer;
+  margin-bottom:16px;
+}
+.drop-zone:hover,.drop-zone.drag-over{
+  border-color:var(--accent);
+  background:var(--bg-hover);
+  box-shadow:0 0 16px var(--accent-glow);
+}
+.drop-zone .dz-icon{font-size:36px;margin-bottom:8px;display:block}
+.drop-zone .dz-title{font-weight:600;color:var(--text-primary);margin-bottom:4px}
+.drop-zone .dz-sub{font-size:12px;color:var(--text-muted)}
+.drop-zone .dz-hint{font-size:11px;color:var(--text-muted);margin-top:8px;font-family:var(--font-mono)}
+.import-summary{
+  background:var(--bg-elevated);
+  border:1px solid var(--accent);
+  border-radius:var(--radius-lg);
+  padding:16px 20px;
+  margin-top:12px;
+  display:flex;
+  align-items:center;
+  gap:16px;
+  flex-wrap:wrap;
+}
+.import-summary .is-stat{text-align:center;min-width:80px}
+.import-summary .is-val{font-size:22px;font-weight:700}
+.import-summary .is-lbl{font-size:11px;color:var(--text-muted)}
+
+/* ── Deployment status colors ─────────────────────────── */
+.deployment-bar{display:flex;height:6px;border-radius:3px;overflow:hidden;width:100%;margin:2px 0}
+.deployment-bar .db-installed{background:var(--installed)}
+.deployment-bar .db-pending{background:var(--pending)}
+.deployment-bar .db-failed{background:var(--failed)}
+.deployment-tooltip{font-size:10px;color:var(--text-muted);white-space:nowrap}
+.shieldview-banner{
+  background:var(--accent-glow);
+  border:1px solid var(--accent);
+  border-radius:var(--radius-lg);
+  padding:16px;
+  margin-bottom:16px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
 @media(max-width:768px){
   .sidebar{position:fixed;left:-240px;transition:left .2s;height:100vh;z-index:100}
   .sidebar.open{left:0}
@@ -127,6 +186,7 @@ tr:hover td{background:var(--bg-hover)}
   .stats-grid{grid-template-columns:1fr 1fr}
   .grid-2{grid-template-columns:1fr}
   .search-input{width:100%}
+  .deployment-bar{width:60px}
 }
 </style>
 </head>
@@ -145,6 +205,7 @@ tr:hover td{background:var(--bg-hover)}
 <button class="nav-item" onclick="navigateTo('deployments')" data-page="deployments"><span class="icon">📦</span><span>Deployments</span></button>
 <div class="section-label" style="margin-top:12px">Infrastructure</div>
 <button class="nav-item" onclick="navigateTo('assets')" data-page="assets"><span class="icon">🖥️</span><span>Assets</span></button>
+<button class="nav-item" onclick="navigateTo('datasources')" data-page="datasources"><span class="icon">📥</span><span>Data Sources</span></button>
 </div>
 <div class="sidebar-footer">
 <div class="avatar">DC</div>
@@ -172,6 +233,7 @@ tr:hover td{background:var(--bg-hover)}
 <div class="page" id="page-deployment-detail"></div>
 <div class="page" id="page-assets"></div>
 <div class="page" id="page-asset-detail"></div>
+<div class="page" id="page-datasources"></div>
 
 </div></div>
 
@@ -218,6 +280,7 @@ const LOCS=['US-East (nyc1)','US-West (sfo1)','EU-Central (fra1)','APAC-Singapor
 const OSES=['Windows Server 2022','Windows Server 2019','Windows 11 Enterprise','Windows 10 Enterprise','RHEL 9.4','RHEL 8.10','Ubuntu 24.04 LTS','Ubuntu 22.04 LTS','macOS 15 Sequoia','macOS 14 Sonoma'];
 const STS=['Active','Fixed','Mitigated','False Positive','Risk Accepted'];
 const REM_STS=['Queued','In Progress','Completed','Failed','Rolled Back'];
+const DEPLOY_STS=['All','Installed','Pending','Failed'];
 const HOSTS=['WEB-PROD-03','DC-PROD-01','DC-PROD-02','EXCH-PROD-01','EXCH-PROD-02','APP-PROD-07','APP-PROD-12','DB-PROD-02','DB-PROD-05','DNS-PROD-01','FW-PROD-01','NPS-PROD-01','K8S-PROD-03','K8S-PROD-07','CI-CD-01','CI-CD-02','MAC-ENG-14','MAC-ENG-22','MAC-EXEC-01','MAC-EXEC-05','SRV-DEV-07','SRV-DEV-12','SRV-STAG-03','CORP-WS7421','CORP-LT3512','CORP-LT3902','NYC-WS441','SFO-LT228','LON-WS115','FRA-VM033'];
 const CVE_IDS=['CVE-2026-12345','CVE-2026-11223','CVE-2026-09876','CVE-2026-04567','CVE-2026-33445','CVE-2026-42002','CVE-2026-44004','CVE-2026-25501','CVE-2026-29100','CVE-2026-38801','CVE-2026-17204','CVE-2026-22984','CVE-2026-36712','CVE-2026-40123','CVE-2026-18990','CVE-2026-30221','CVE-2026-21101','CVE-2026-52003'];
 const CVE_NAMES={'CVE-2026-12345':'Log Library Remote Code Execution','CVE-2026-11223':'Print Service Elevation of Privilege','CVE-2026-09876':'TLS Certificate Parsing Vulnerability','CVE-2026-04567':'OS Kernel Privilege Escalation','CVE-2026-33445':'Mail Server Remote Code Execution','CVE-2026-42002':'Browser Engine Remote Code Execution','CVE-2026-44004':'MDM API Authorization Bypass','CVE-2026-25501':'Hypervisor Server Remote Code Execution','CVE-2026-29100':'Network OS Web UI Auth Bypass','CVE-2026-38801':'Firewall OS Command Injection','CVE-2026-17204':'Graphics Driver Elevation of Privilege','CVE-2026-22984':'Database Agent Remote Code Execution','CVE-2026-36712':'Container Runtime Privilege Escalation','CVE-2026-40123':'Collaboration Platform Remote Code Execution','CVE-2026-18990':'SSH Server Remote Code Execution','CVE-2026-30221':'Video Conference Client EoP','CVE-2026-21101':'ITSM Platform Remote Code Execution','CVE-2026-52003':'Container Engine Privilege Escalation'};
@@ -254,7 +317,7 @@ for(let r=0;r<24;r++){
   const uni=[...new Set(tgt)];
   const status=pick(REM_STS);
   const created=ago(randInt(72,720));
-  const completed=status==='Completed'?ago(randInt(0,48)):'—';
+  const completed=status==='Completed'?ago(randInt(0,48)):'-';
   remediations.push({
     id:'RM-'+(1000+r), cve, name:CVE_NAMES[cve], kb:KBS[cve],
     targets:uni, targetCount:uni.length, status, created, completed,
@@ -269,36 +332,166 @@ for(let d=0;d<20;d++){
     id:'DEP-'+(2000+d), package:'RemFlow-'+(3000+d),
     type:pick(['Software Update Package','Application Deployment','Configuration Change','Registry Update']),
     targetCount:randInt(5,30), successRate:st==='Completed'?randInt(92,100):st==='Failed'?randInt(20,50):randInt(60,90),
-    start:ago(randInt(1,168)), end:st==='Completed'||st==='Rolled Back'?ago(randInt(0,48)):'—',
+    start:ago(randInt(1,168)), end:st==='Completed'||st==='Rolled Back'?ago(randInt(0,48)):'-',
     status:st
   });
 }
 
+// ── CSV Parser (vanilla JS, handles quoted fields) ──────────────
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (i + 1 < text.length && text[i+1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ',') { row.push(field.trim()); field = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (field || row.length > 0) {
+          row.push(field.trim());
+          if (row.some(f => f !== '')) rows.push(row);
+          row = [];
+          field = '';
+        }
+        if (c === '\r' && i + 1 < text.length && text[i+1] === '\n') i++;
+      } else field += c;
+    }
+  }
+  if (field || row.length > 0) {
+    row.push(field.trim());
+    if (row.some(f => f !== '')) rows.push(row);
+  }
+  return rows;
+}
+
+// ── Deployment Data from CSV Imports ───────────────────────────
+function getDeploymentRecords() {
+  try {
+    return JSON.parse(localStorage.getItem('security-tools:remflow-deployments') || '[]');
+  } catch(e) { return []; }
+}
+
+function saveDeploymentRecords(records) {
+  localStorage.setItem('security-tools:remflow-deployments', JSON.stringify(records));
+}
+
+// Build deployment lookup: hostname -> {package, status, timestamp, exitCode}
+function buildDeploymentLookup() {
+  const records = getDeploymentRecords();
+  const lookup = {};
+  records.forEach(r => {
+    const host = r.Hostname || r.Computer || r.hostname || '';
+    if (!host) return;
+    if (!lookup[host]) lookup[host] = [];
+    lookup[host].push({
+      package: r.Package || r.package || '',
+      status: (r.Status || r.status || 'Unknown').toLowerCase(),
+      timestamp: r.Timestamp || r['Deploy Time'] || r.timestamp || '',
+      exitCode: r['Exit Code'] || r.exitCode || ''
+    });
+  });
+  return lookup;
+}
+
+// ── ShieldView Integration ─────────────────────────────────────
+function getShieldViewFindings() {
+  try {
+    return JSON.parse(localStorage.getItem('security-tools:imported-findings') || '[]');
+  } catch(e) { return []; }
+}
+
+function getShieldViewCVEs() {
+  const findings = getShieldViewFindings();
+  const cveMap = {};
+  findings.forEach(f => {
+    const cve = f.cve || f.CVE || '';
+    const name = f.name || f.Name || f.title || f.Title || '';
+    const severity = f.severity || f.Severity || 'Medium';
+    const assets = f.assets || f.affectedAssets || f.hosts || [];
+    if (!cve) return;
+    if (!cveMap[cve]) {
+      cveMap[cve] = { cve, name, severity, assetCount: 0, assets: [] };
+    }
+    // assets could be a number or an array
+    if (Array.isArray(assets)) {
+      assets.forEach(a => { if (!cveMap[cve].assets.includes(a)) cveMap[cve].assets.push(a); });
+      cveMap[cve].assetCount = cveMap[cve].assets.length;
+    } else if (typeof assets === 'number') {
+      cveMap[cve].assetCount = Math.max(cveMap[cve].assetCount, assets);
+    } else {
+      cveMap[cve].assetCount = Math.max(cveMap[cve].assetCount, 1);
+    }
+  });
+  return Object.values(cveMap);
+}
+
+// Auto-create remediation items from ShieldView data
+function autoCreateShieldViewRemediations() {
+  const cves = getShieldViewCVEs();
+  if (cves.length === 0) return [];
+  const autoRems = [];
+  cves.forEach(c => {
+    // Check if remediation already exists for this CVE
+    const exists = remediations.find(r => r.cve === c.cve);
+    if (exists) return;
+    const created = ago(randInt(0, 4));
+    autoRems.push({
+      id: 'RM-SV-' + (1000 + autoRems.length),
+      cve: c.cve,
+      name: c.name || CVE_NAMES[c.cve] || c.cve,
+      kb: KBS[c.cve] || 'SV-' + c.cve.replace('CVE-', ''),
+      targets: c.assets.length > 0 ? c.assets : HOSTS.slice(0, Math.min(c.assetCount || 3, HOSTS.length)),
+      targetCount: c.assetCount || c.assets.length || Math.min(3, HOSTS.length),
+      status: 'Queued',
+      created,
+      completed: '-',
+      coverage: 0,
+      fromShieldView: true
+    });
+  });
+  return autoRems;
+}
+
+// ── Navigation ─────────────────────────────────────────────────
 function navigateTo(page, param){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   const navBtn=document.querySelector(`.nav-item[data-page="${page}"]`);
   if(navBtn)navBtn.classList.add('active');
-  const titles={dashboard:'Dashboard',findings:'Findings',remediations:'Remediations',deployments:'Deployments',assets:'Assets','finding-detail':'CVE Detail','remediation-detail':'Remediation Detail','deployment-detail':'Deployment Detail','create-remediation':'Create Remediation','deploy-fix':'Deploy Fix','asset-detail':'Asset Detail'};
+  const titles={
+    dashboard:'Dashboard',findings:'Findings',remediations:'Remediations',
+    deployments:'Deployments',assets:'Assets',datasources:'Data Sources',
+    'finding-detail':'CVE Detail','remediation-detail':'Remediation Detail',
+    'deployment-detail':'Deployment Detail','create-remediation':'Create Remediation',
+    'deploy-fix':'Deploy Fix','asset-detail':'Asset Detail'
+  };
   document.getElementById('pageTitle').textContent=titles[page]||page;
   if(page==='dashboard')renderDashboard();
   else if(page==='findings')renderFindings();
   else if(page==='remediations')renderRemediations();
   else if(page==='deployments')renderDeployments();
   else if(page==='assets')renderAssets();
+  else if(page==='datasources')renderDataSources();
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebarOverlay').classList.remove('show');
   document.getElementById('page-'+page).scrollTop=0;
 }
 
+// ── Dashboard ──────────────────────────────────────────────────
 async function renderDashboard(){
   let allF, assetsList, deploymentsList, remediationsList;
 
   if (API_MODE === "api") {
     const dash = await apiFetch('/remflow/dashboard');
     if (dash) {
-      // Render from API directly
       document.getElementById('page-dashboard').innerHTML = renderDashboardHTML(dash);
       return;
     }
@@ -307,7 +500,6 @@ async function renderDashboard(){
     allF=assets.flatMap(a=>a.findings);
     assetsList = assets; deploymentsList = deployments; remediationsList = remediations;
   }
-  // Fallback client-side rendering
   const total=allF.length;
   const autoRem=allF.filter(f=>f.status==='Fixed').length;
   const pending=allF.filter(f=>f.status==='Active').length;
@@ -341,26 +533,55 @@ function renderDashboardHTML(dash){
   const pendingRate=dash.auto_rate||0;
   const pendingCount=dash.pending_review||0;
   const failedCount=dash.failed_remediations||0;
-  let html=`
+
+  // ── ShieldView Connection Banner ──────────────────────────
+  let bannerHTML = '';
+  const svFindings = getShieldViewFindings();
+  if (svFindings.length > 0) {
+    const svCVEs = getShieldViewCVEs();
+    bannerHTML = `<div class="shieldview-banner">
+      <span style="font-size:20px">🔗</span>
+      <div style="flex:1">
+        <div style="font-weight:600">Connected to ShieldView — ${svFindings.length} findings, ${svCVEs.length} CVEs</div>
+        <div style="font-size:12px;color:var(--text-secondary)">Auto-populated ${autoCreateShieldViewRemediations().length} remediation items</div>
+      </div>
+      <button class="btn btn-sm btn-primary" onclick="navigateTo('remediations')">View Remediations</button>
+    </div>`;
+  } else {
+    bannerHTML = `<div class="shieldview-banner" style="border-color:var(--border-light);background:var(--bg-elevated)">
+      <span style="font-size:20px">📋</span>
+      <div style="flex:1">
+        <div style="font-weight:600">No ShieldView data detected</div>
+        <div style="font-size:12px;color:var(--text-muted)">Import findings in ShieldView to auto-populate remediation items. Using demo data below.</div>
+      </div>
+    </div>`;
+  }
+
+  // Cross-tool banner from TheValidator
+  const pendingRem = checkCrossToolQueue();
+  let queueHTML = '';
+  if (pendingRem.length > 0) {
+    queueHTML = `<div style="background:var(--accent-glow);border:1px solid var(--accent);border-radius:var(--radius-lg);padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+      <span style="font-size:20px">🔄</span>
+      <div style="flex:1">
+        <div style="font-weight:600">${pendingRem.length} remediation${pendingRem.length>1?'s':''} received from ShieldView</div>
+        <div style="font-size:12px;color:var(--text-secondary)">${pendingRem.map(p=>p.cve).join(', ')}</div>
+      </div>
+      <button class="btn btn-sm btn-primary" onclick="navigateTo('remediations')">View</button>
+    </div>`;
+  }
+
+  let html=`<div class="stats-grid">
   <div class="stat-card" onclick="navigateTo('findings')"><div class="stat-value" style="color:var(--accent)">${total}</div><div class="stat-label">Total Findings</div><div class="stat-sub">Across ${assets.length} assets</div></div>
   <div class="stat-card" onclick="navigateTo('remediations')"><div class="stat-value" style="color:var(--low)">${autoRem}</div><div class="stat-label">Auto-Remediated</div><div class="stat-sub">${total > 0 ? Math.round(autoRem/total*100) : 0}% resolution rate</div></div>
   <div class="stat-card" onclick="navigateTo('findings')"><div class="stat-value" style="color:var(--medium)">${pendingCount}</div><div class="stat-label">Pending Review</div><div class="stat-sub">Awaiting triage</div></div>
   <div class="stat-card" onclick="navigateTo('deployments')"><div class="stat-value" style="color:var(--critical)">${failedCount}</div><div class="stat-label">Failed / Excepted</div><div class="stat-sub">Manual intervention needed</div></div>
   <div class="stat-card" onclick="navigateTo('remediations')"><div class="stat-value" style="color:var(--accent)">${pendingRate}%</div><div class="stat-label">Auto-Remediation Rate</div><div class="stat-sub">Target: 85% — ${Math.max(0,85-pendingRate)}% gap</div></div>
-</div>
-`;// Cross-tool banner from ShieldView
-const pendingRem = checkCrossToolQueue();
-if (pendingRem.length > 0) {
-  html += `<div style="background:var(--accent-glow);border:1px solid var(--accent);border-radius:var(--radius-lg);padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
-    <span style="font-size:20px">🔄</span>
-    <div style="flex:1">
-      <div style="font-weight:600">${pendingRem.length} remediation${pendingRem.length>1?'s':''} received from ShieldView</div>
-      <div style="font-size:12px;color:var(--text-secondary)">${pendingRem.map(p=>p.cve).join(', ')}</div>
-    </div>
-    <button class="btn btn-sm btn-primary" onclick="navigateTo('remediations')">View</button>
-  </div>`;
-}
-html+=`<div class="grid-2">
+</div>`;
+
+  html += bannerHTML;
+  html += queueHTML;
+  html+=`<div class="grid-2">
 <div class="card">
 <div class="card-title">Severity Distribution</div>
 <div class="chart-bar" style="margin-bottom:20px">`;
@@ -388,7 +609,6 @@ html+=`<div class="grid-2">
 
   // Activity Feed card
   const activityItems=[];
-  // From deployments
   for(const d of deployments){
     const h=randInt(1,168);
     const icon=d.status==='Completed'?'🟢':d.status==='Failed'?'🔴':d.status==='Rolled Back'?'🔴':'🟡';
@@ -398,7 +618,6 @@ html+=`<div class="grid-2">
       nav:"navigateTo('deployments')", ts:d.start
     });
   }
-  // From remediations
   for(const r of remediations){
     const h=randInt(1,336);
     const icon=r.status==='Completed'?'🟢':r.status==='Failed'?'🔴':r.status==='In Progress'?'🟡':'ℹ️';
@@ -408,14 +627,13 @@ html+=`<div class="grid-2">
       nav:`navigateTo('remediations')`, ts:r.created
     });
   }
-  // Sort by recency (reverse iteration of the generated order preserves timestamp ordering)
   const sorted=activityItems.sort((a,b)=>b.h-a.h).slice(0,10);
   html+=`<div class="card">
-<div class="card-header"><h3>🔔 Recent Activity</h3></div>
-<div class="card-body" id="activity-feed">`;
+<div class="card-title">🔔 Recent Activity</div>
+<div>`;
   for(const a of sorted){
     const rel=a.h<1?'just now':a.h<24?a.h+'h ago':Math.floor(a.h/24)+'d ago';
-    html+=`<div class="activity-item" onclick="${a.nav}" style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
+    html+=`<div class="clickable" onclick="${a.nav}" style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
       <span style="font-size:18px">${a.icon}</span>
       <div style="flex:1">
         <div style="font-size:13px">${a.desc}</div>
@@ -429,6 +647,7 @@ html+=`<div class="grid-2">
   document.getElementById('page-dashboard').innerHTML=html;
 }
 
+// ── Findings ───────────────────────────────────────────────────
 function renderFindings(){
   const allF=assets.flatMap(a=>a.findings.map(f=>({...f,hostname:a.hostname,loc:a.loc})));
   let html=`
@@ -485,6 +704,7 @@ function viewFinding(cveId){
 <div class="flex" style="margin-bottom:16px;gap:8px">
   <button class="btn btn-sm btn-primary" onclick="showCreateRemediation('${cveId}')">Create Remediation</button>
   <button class="btn btn-sm" onclick="showDeployFix('${cveId}')">Deploy Fix</button>
+  <button class="btn btn-sm" onclick="pushToTheValidator('${cveId}')">📤 Push to TheValidator</button>
 </div>
 </div>
 <div class="card">
@@ -502,43 +722,139 @@ function viewFinding(cveId){
   navigateTo('finding-detail');
 }
 
+// ── Remediations ───────────────────────────────────────────────
 function renderRemediations(){
+  // Merge ShieldView auto-remediations
+  const svAutoRems = autoCreateShieldViewRemediations();
+  const allRems = [...remediations];
+  svAutoRems.forEach(sr => {
+    if (!allRems.find(r => r.cve === sr.cve)) allRems.push(sr);
+  });
+  window.__allRems = allRems;
+
+  const depLookup = buildDeploymentLookup();
+
   let html=`
 <div class="filter-group">
   <input class="search-input" id="rem-search" placeholder="Search CVE or ID..." oninput="renderRemTable()">
   <select class="filter-select" id="rem-status" onchange="renderRemTable()"><option value="all">All Statuses</option>${REM_STS.map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
-  <span class="ml-auto" style="font-size:12px;color:var(--text-muted)">${remediations.length} remediations</span>
+  <select class="filter-select" id="rem-depstatus" onchange="renderRemTable()"><option value="all">All Deploy Status</option>${DEPLOY_STS.filter(s=>s!=='All').map(s=>`<option value="${s.toLowerCase()}">${s}</option>`).join('')}</select>
+  <span class="ml-auto" style="font-size:12px;color:var(--text-muted)">${allRems.length} remediations</span>
 </div>
-<button class="btn btn-sm" onclick="exportCSV()">📥 Export CSV</button>
+<div class="btn-group">
+  <button class="btn btn-sm btn-primary" onclick="pushAllToTheValidator()">📤 Push All to TheValidator</button>
+  <button class="btn btn-sm" onclick="exportRemCSV()">📥 Export CSV</button>
+</div>
 <div style="overflow-x:auto;margin-top:12px"><table id="rem-table">
-<tr><th>ID</th><th>CVE</th><th>Package</th><th>Targets</th><th>Coverage</th><th>Created</th><th>Status</th></tr>
+<tr><th>ID</th><th>CVE</th><th>Package</th><th>Targets</th><th>Coverage</th><th>Deployment</th><th>Created</th><th>Status</th><th></th></tr>
 <tbody id="rem-tbody"></tbody></table></div>`;
   document.getElementById('page-remediations').innerHTML=html;
-  window.__allRems=remediations;
   renderRemTable();
 }
 
 function renderRemTable(){
   const q=document.getElementById('rem-search')?.value?.toLowerCase()||'';
   const st=document.getElementById('rem-status')?.value||'all';
+  const ds=document.getElementById('rem-depstatus')?.value||'all';
   const all=window.__allRems||[];
-  const filtered=all.filter(r=>{
+  const depLookup = buildDeploymentLookup();
+
+  let filtered=all.filter(r=>{
     if(st!=='all'&&r.status!==st)return false;
-    return !q||r.cve.toLowerCase().includes(q)||r.id.toLowerCase().includes(q);
+    if(!q||r.cve.toLowerCase().includes(q)||r.id.toLowerCase().includes(q)){
+      // Check deployment status filter
+      if(ds!=='all') {
+        const rStatuses = getRemediationDeployStats(r, depLookup);
+        if (ds==='installed' && rStatuses.installed===0) return false;
+        if (ds==='pending' && rStatuses.pending===0) return false;
+        if (ds==='failed' && rStatuses.failed===0) return false;
+      }
+      return true;
+    }
+    return false;
   });
-  let rows=filtered.map(r=>`<tr class="clickable" onclick="viewRemediation('${r.id}')"><td class="mono text-link">${r.id}</td><td class="mono">${r.cve}</td><td>${r.kb||'—'}</td><td>${r.targetCount}</td><td><div class="progress-bar" style="width:80px;display:inline-block;vertical-align:middle"><div class="progress-fill" style="width:${r.coverage}%;background:${r.coverage>80?'var(--low)':r.coverage>50?'var(--medium)':'var(--critical)'}"></div></div> <span style="font-size:11px">${r.coverage}%</span></td><td style="font-size:12px;color:var(--text-muted)">${r.created}</td><td>${statusBadge(r.status)}</td></tr>`).join('');
-  document.getElementById('rem-tbody').innerHTML=rows||'<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">No remediations match</td></tr>';
+
+  let rows=filtered.map(r=>{
+    const stats = getRemediationDeployStats(r, depLookup);
+    const totalDeploy = stats.installed + stats.pending + stats.failed;
+    const deployCoverage = r.targetCount > 0 ? Math.round((stats.installed / r.targetCount) * 100) : 0;
+
+    // Build deployment bar
+    let depBar = '';
+    if (totalDeploy > 0) {
+      const iPct = Math.round((stats.installed / totalDeploy) * 100);
+      const pPct = Math.round((stats.pending / totalDeploy) * 100);
+      const fPct = 100 - iPct - pPct;
+      depBar = `<div class="deployment-bar" style="width:80px">
+        <div class="db-installed" style="width:${iPct}%"></div>
+        <div class="db-pending" style="width:${pPct}%"></div>
+        <div class="db-failed" style="width:${fPct}%"></div>
+      </div>
+      <span class="deployment-tooltip">${stats.installed}✓ ${stats.pending}⏳ ${stats.failed}✗</span>`;
+    } else {
+      depBar = `<span style="font-size:11px;color:var(--text-muted)">—</span>`;
+    }
+
+    // Deployment coverage %
+    const covColor = deployCoverage >= 80 ? 'var(--low)' : deployCoverage >= 50 ? 'var(--medium)' : 'var(--critical)';
+    const depCovHTML = totalDeploy > 0
+      ? `<span style="font-size:12px;color:${covColor};font-weight:600">${deployCoverage}%</span>`
+      : `<span style="font-size:11px;color:var(--text-muted)">—</span>`;
+
+    return `<tr class="clickable" ondblclick="viewRemediation('${r.id}')">
+      <td class="mono text-link" onclick="viewRemediation('${r.id}')">${r.id}</td>
+      <td class="mono">${r.cve}${r.fromShieldView?' <span style="font-size:10px;color:var(--accent)">🔗SV</span>':''}</td>
+      <td>${r.kb||'—'}</td>
+      <td>${r.targetCount}</td>
+      <td>${depCovHTML}</td>
+      <td>${depBar}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${r.created}</td>
+      <td>${statusBadge(r.status)}</td>
+      <td><button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();pushToTheValidator('${r.cve}')" title="Push to TheValidator">📤</button></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('rem-tbody').innerHTML=rows||'<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">No remediations match</td></tr>';
+}
+
+// Calculate deployment status for a remediation based on its targets
+function getRemediationDeployStats(remediation, depLookup) {
+  const stats = { installed: 0, pending: 0, failed: 0 };
+  if (!remediation.targets) return stats;
+  remediation.targets.forEach(host => {
+    const records = depLookup[host];
+    if (!records || records.length === 0) {
+      // No deployment data — treat as pending for demo if remediation has coverage
+      if (remediation.status === 'Completed') stats.installed++;
+      else if (remediation.status === 'In Progress') stats.pending++;
+      else if (remediation.status === 'Failed') stats.failed++;
+      else stats.pending++;
+      return;
+    }
+    records.forEach(rec => {
+      const s = rec.status;
+      if (s === 'installed' || s === 'success' || s === 'completed') stats.installed++;
+      else if (s === 'pending' || s === 'in progress' || s === 'queued') stats.pending++;
+      else stats.failed++;
+    });
+  });
+  return stats;
 }
 
 function viewRemediation(id){
-  const r=remediations.find(x=>x.id===id);
+  const allRems = window.__allRems || remediations;
+  const r=allRems.find(x=>x.id===id);
   if(!r)return;
+  const depLookup = buildDeploymentLookup();
+  const stats = getRemediationDeployStats(r, depLookup);
+  const deployCoverage = r.targetCount > 0 ? Math.round((stats.installed / r.targetCount) * 100) : 0;
+
   let html=`
 <button class="btn btn-sm btn-ghost" onclick="navigateTo('remediations')">← Back to Remediations</button>
 <div class="card" style="margin-top:12px">
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
   <h2 style="font-size:18px">${r.id}</h2>
   <span class="badge badge-${sevClass(r.status==='Completed'?'success':r.status==='Failed'?'critical':r.status==='In Progress'?'warning':'medium')}">${r.status}</span>
+  ${r.fromShieldView?'<span style="font-size:11px;color:var(--accent)">🔗 From ShieldView</span>':''}
 </div>
 <div class="grid-2" style="margin-bottom:12px">
   <div><span style="color:var(--text-muted);font-size:12px">CVE</span><br><span class="mono text-link" onclick="viewFinding('${r.cve}')">${r.cve}</span></div>
@@ -548,15 +864,38 @@ function viewRemediation(id){
   <div><span style="color:var(--text-muted);font-size:12px">Created</span><br>${r.created}</div>
   <div><span style="color:var(--text-muted);font-size:12px">Completed</span><br>${r.completed}</div>
 </div>
-<div class="btn-group"><button class="btn btn-sm btn-primary" onclick="showToast('Rollback initiated for ${r.id}')">🔄 Rollback</button><button class="btn btn-sm" onclick="showToast('Generating report for ${r.id}...')">📄 View Report</button></div>
+<div class="card" style="margin-bottom:12px">
+  <div class="card-title">Deployment Status</div>
+  <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="stat-card"><div class="stat-value" style="color:var(--installed)">${stats.installed}</div><div class="stat-label">Installed</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--pending)">${stats.pending}</div><div class="stat-label">Pending</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--failed)">${stats.failed}</div><div class="stat-label">Failed</div></div>
+  </div>
+  <div style="margin-top:8px">
+    <span style="font-size:12px;color:var(--text-muted)">Deployment Coverage: </span>
+    <span style="font-weight:700;color:${deployCoverage>=80?'var(--low)':deployCoverage>=50?'var(--medium)':'var(--critical)'}">${deployCoverage}%</span>
+    <div class="progress-bar" style="width:120px;display:inline-block;vertical-align:middle;margin-left:8px">
+      <div class="progress-fill" style="width:${deployCoverage}%;background:${deployCoverage>=80?'var(--low)':deployCoverage>=50?'var(--medium)':'var(--critical)'}"></div>
+    </div>
+  </div>
+</div>
+<div class="btn-group"><button class="btn btn-sm btn-primary" onclick="pushToTheValidator('${r.cve}')">📤 Push to TheValidator</button><button class="btn btn-sm" onclick="showToast('Rollback initiated for ${r.id}')">🔄 Rollback</button><button class="btn btn-sm" onclick="showToast('Generating report for ${r.id}...')">📄 View Report</button></div>
 </div>
 <div class="card">
-<div class="card-title">Deployment Progress</div>
+<div class="card-title">Deployment Progress by Asset</div>
 <div style="overflow-x:auto"><table>
-<tr><th>Asset</th><th>Status</th><th>Message</th><th>Timestamp</th></tr>`;
+<tr><th>Asset</th><th>Deploy Status</th><th>Message</th><th>Timestamp</th></tr>`;
   for(let t=0;t<Math.min(r.targets.length,15);t++){
-    const st=r.status==='Completed'?'Success':r.status==='Failed'?pick(['Failed','Timeout']):pick(['Pending','In Progress']);
-    html+=`<tr class="clickable" onclick="viewAsset('${r.targets[t]}')"><td class="mono text-link">${r.targets[t]}</td><td>${statusBadge(st)}</td><td style="font-size:12px;color:var(--text-muted)">${st==='Success'?'Patch applied successfully':st==='Failed'?'Deployment failed - retrying':st==='Timeout'?'Agent unreachable':'Waiting in queue'}</td><td style="font-size:12px;color:var(--text-muted)">${r.completed!=='—'?r.completed:ago(randInt(0,2))}</td></tr>`;
+    const host=r.targets[t];
+    const hostRecs = depLookup[host];
+    let depStatus = r.status==='Completed'?'Success':r.status==='Failed'?pick(['Failed','Timeout']):pick(['Pending','In Progress']);
+    let depMsg = depStatus==='Success'?'Patch applied successfully':depStatus==='Failed'?'Deployment failed - retrying':depStatus==='Timeout'?'Agent unreachable':'Waiting in queue';
+    if (hostRecs && hostRecs.length > 0) {
+      const rec = hostRecs[0];
+      depStatus = rec.status.charAt(0).toUpperCase() + rec.status.slice(1);
+      depMsg = rec.exitCode ? `Exit code: ${rec.exitCode}` : (depStatus==='Installed'?'Patch applied successfully':depStatus==='Pending'?'Waiting for deployment':'Deployment failed');
+    }
+    html+=`<tr class="clickable" onclick="viewAsset('${host}')"><td class="mono text-link">${host}</td><td>${deployStatusBadge(depStatus)}</td><td style="font-size:12px;color:var(--text-muted)">${depMsg}</td><td style="font-size:12px;color:var(--text-muted)">${hostRecs&&hostRecs[0]?hostRecs[0].timestamp:r.completed!=='-'?r.completed:ago(randInt(0,2))}</td></tr>`;
   }
   if(r.targets.length>15)html+=`<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">...and ${r.targets.length-15} more assets</td></tr>`;
   html+=`</table></div></div>`;
@@ -564,6 +903,7 @@ function viewRemediation(id){
   navigateTo('remediation-detail');
 }
 
+// ── Deployments ────────────────────────────────────────────────
 function renderDeployments(){
   let html=`
 <div class="filter-group">
@@ -594,7 +934,6 @@ function renderDepTable(){
 function viewDeployment(id){
   const d=deployments.find(x=>x.id===id);
   if(!d)return;
-  // Generate per-asset detail
   const assetDetails=[];
   const HOSTS_COPY=[...HOSTS];
   for(let i=0;i<d.targetCount;i++){
@@ -652,12 +991,340 @@ function viewDeployment(id){
 <tr><th>Hostname</th><th>OS</th><th>Location</th><th>Status</th><th>Message</th><th>Timestamp</th></tr>
 <tbody id="dep-detail-tbody"></tbody></table></div></div>`;
   document.getElementById('page-deployment-detail').innerHTML=html;
-  // Render asset table
   let rows=assetDetails.map(a=>`<tr><td class="mono text-link" onclick="viewAsset('${a.hostname}')">${a.hostname}</td><td style="font-size:12px">${a.os}</td><td style="font-size:12px;color:var(--text-muted)">${a.loc}</td><td>${statusBadge(a.status)}</td><td style="font-size:12px;color:var(--text-muted)">${a.message}</td><td style="font-size:12px;color:var(--text-muted)">${a.timestamp}</td></tr>`).join('');
   document.getElementById('dep-detail-tbody').innerHTML=rows;
   navigateTo('deployment-detail');
 }
 
+// ── Data Sources (CSV Import) ──────────────────────────────────
+function renderDataSources(){
+  const records = getDeploymentRecords();
+  let html=`
+<div class="card" style="margin-bottom:24px">
+  <div class="card-title">📥 Import Deployment Status</div>
+  <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">Import CSV exports from SCCM or PDQ to track deployment status per asset. Data is stored in your browser's local storage.</p>
+</div>
+
+<div class="grid-2">
+  <div>
+    <div class="card">
+      <div class="card-title">🔧 SCCM Deployment Status</div>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Expected columns: <span class="mono">Hostname, Package, Version, Status, Timestamp</span></p>
+      <div class="drop-zone" id="sccm-dropzone" onclick="document.getElementById('sccm-file-input').click()">
+        <span class="dz-icon">📂</span>
+        <div class="dz-title">Drop SCCM CSV here</div>
+        <div class="dz-sub">or click to browse</div>
+        <div class="dz-hint">Hostname, Package, Version, Status, Timestamp</div>
+      </div>
+      <input type="file" id="sccm-file-input" accept=".csv" style="display:none" onchange="handleSCCMFile(this.files[0])">
+      <div id="sccm-summary"></div>
+    </div>
+  </div>
+  <div>
+    <div class="card">
+      <div class="card-title">📋 PDQ Deployment Results</div>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Expected columns: <span class="mono">Computer, Package, Status, Exit Code, Deploy Time</span></p>
+      <div class="drop-zone" id="pdq-dropzone" onclick="document.getElementById('pdq-file-input').click()">
+        <span class="dz-icon">📂</span>
+        <div class="dz-title">Drop PDQ CSV here</div>
+        <div class="dz-sub">or click to browse</div>
+        <div class="dz-hint">Computer, Package, Status, Exit Code, Deploy Time</div>
+      </div>
+      <input type="file" id="pdq-file-input" accept=".csv" style="display:none" onchange="handlePDQFile(this.files[0])">
+      <div id="pdq-summary"></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">📊 Imported Deployment Records (${records.length})</div>
+  <div style="overflow-x:auto"><table>
+    <tr><th>Hostname</th><th>Package</th><th>Status</th><th>Source</th><th>Timestamp</th></tr>
+    <tbody id="imported-records-tbody"></tbody>
+  </table></div>
+  <div style="margin-top:12px;display:flex;gap:8px">
+    <button class="btn btn-sm" onclick="clearDeploymentRecords()">🗑️ Clear All Records</button>
+    <button class="btn btn-sm" onclick="loadDemoDeploymentRecords()">📋 Load Demo Data</button>
+  </div>
+</div>`;
+  document.getElementById('page-datasources').innerHTML=html;
+  renderImportedRecordsTable();
+
+  // Set up drag-and-drop
+  setTimeout(() => {
+    setupDropZone('sccm-dropzone', 'sccm-file-input');
+    setupDropZone('pdq-dropzone', 'pdq-file-input');
+  }, 100);
+}
+
+function setupDropZone(dropZoneId, fileInputId) {
+  const dz = document.getElementById(dropZoneId);
+  if (!dz) return;
+  dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => { dz.classList.remove('drag-over'); });
+  dz.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dz.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const input = document.getElementById(fileInputId);
+      if (fileInputId === 'sccm-file-input') handleSCCMFile(file);
+      else handlePDQFile(file);
+    }
+  });
+}
+
+function handleSCCMFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const rows = parseCSV(text);
+    if (rows.length === 0) { showToast('⚠️ Empty CSV file'); return; }
+    // First row is header
+    const header = rows[0].map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+    const hostnameIdx = header.findIndex(h => h.includes('hostname') || h === 'hostname' || h === 'computer');
+    const packageIdx = header.findIndex(h => h.includes('package') || h === 'package');
+    const versionIdx = header.findIndex(h => h.includes('version') || h === 'version');
+    const statusIdx = header.findIndex(h => h.includes('status') || h === 'status');
+    const timestampIdx = header.findIndex(h => h.includes('timestamp') || h.includes('time') || h === 'timestamp');
+
+    if (hostnameIdx === -1 || statusIdx === -1) {
+      showToast('⚠️ CSV must have Hostname and Status columns');
+      renderImportSummary('sccm', null, 0, 0, 'Missing required columns');
+      return;
+    }
+
+    const records = [];
+    let successCount = 0, failedCount = 0;
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (row.length < Math.max(hostnameIdx, statusIdx) + 1) continue;
+      const status = (row[statusIdx] || '').trim().toLowerCase();
+      if (status === 'installed' || status === 'success') successCount++;
+      else if (status === 'failed' || status === 'error') failedCount++;
+
+      records.push({
+        Hostname: (row[hostnameIdx] || '').trim(),
+        Package: packageIdx >= 0 ? (row[packageIdx] || '').trim() : '',
+        Version: versionIdx >= 0 ? (row[versionIdx] || '').trim() : '',
+        Status: (row[statusIdx] || '').trim(),
+        Timestamp: timestampIdx >= 0 ? (row[timestampIdx] || '').trim() : '',
+        source: 'SCCM',
+        importedAt: new Date().toISOString()
+      });
+    }
+
+    // Merge with existing records (replace duplicates by hostname+package)
+    const existing = getDeploymentRecords();
+    const merged = mergeDeploymentRecords(existing, records);
+    saveDeploymentRecords(merged);
+
+    renderImportSummary('sccm', file.name, records.length, successCount, failedCount);
+    renderImportedRecordsTable();
+    showToast(`✅ Imported ${records.length} SCCM records (${successCount} installed, ${failedCount} failed)`);
+  };
+  reader.readAsText(file);
+}
+
+function handlePDQFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const rows = parseCSV(text);
+    if (rows.length === 0) { showToast('⚠️ Empty CSV file'); return; }
+    const header = rows[0].map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+    const computerIdx = header.findIndex(h => h.includes('computer') || h.includes('hostname') || h === 'computer');
+    const packageIdx = header.findIndex(h => h.includes('package') || h === 'package');
+    const statusIdx = header.findIndex(h => h.includes('status') || h === 'status');
+    const exitCodeIdx = header.findIndex(h => h.includes('exitcode') || h.includes('exit') || h === 'exitcode');
+    const deployTimeIdx = header.findIndex(h => h.includes('deploytime') || h.includes('deploy') || h.includes('time') || h === 'deploytime');
+
+    if (computerIdx === -1 || statusIdx === -1) {
+      showToast('⚠️ CSV must have Computer and Status columns');
+      renderImportSummary('pdq', null, 0, 0, 'Missing required columns');
+      return;
+    }
+
+    const records = [];
+    let successCount = 0, failedCount = 0;
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (row.length < Math.max(computerIdx, statusIdx) + 1) continue;
+      const status = (row[statusIdx] || '').trim().toLowerCase();
+      if (status === 'installed' || status === 'success') successCount++;
+      else if (status === 'failed' || status === 'error') failedCount++;
+
+      records.push({
+        Computer: (row[computerIdx] || '').trim(),
+        Hostname: (row[computerIdx] || '').trim(),
+        Package: packageIdx >= 0 ? (row[packageIdx] || '').trim() : '',
+        Status: (row[statusIdx] || '').trim(),
+        'Exit Code': exitCodeIdx >= 0 ? (row[exitCodeIdx] || '').trim() : '',
+        'Deploy Time': deployTimeIdx >= 0 ? (row[deployTimeIdx] || '').trim() : '',
+        Timestamp: deployTimeIdx >= 0 ? (row[deployTimeIdx] || '').trim() : '',
+        source: 'PDQ',
+        importedAt: new Date().toISOString()
+      });
+    }
+
+    const existing = getDeploymentRecords();
+    const merged = mergeDeploymentRecords(existing, records);
+    saveDeploymentRecords(merged);
+
+    renderImportSummary('pdq', file.name, records.length, successCount, failedCount);
+    renderImportedRecordsTable();
+    showToast(`✅ Imported ${records.length} PDQ records (${successCount} installed, ${failedCount} failed)`);
+  };
+  reader.readAsText(file);
+}
+
+function mergeDeploymentRecords(existing, incoming) {
+  const merged = [...existing];
+  incoming.forEach(inc => {
+    const host = inc.Hostname || inc.Computer || '';
+    const pkg = inc.Package || '';
+    // Replace matching record or append
+    const idx = merged.findIndex(e =>
+      (e.Hostname || e.Computer || '') === host &&
+      (e.Package || '') === pkg
+    );
+    if (idx >= 0) merged[idx] = inc;
+    else merged.push(inc);
+  });
+  return merged;
+}
+
+function renderImportSummary(source, filename, total, success, failed) {
+  const containerId = source + '-summary';
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  if (!filename) {
+    container.innerHTML = `<div style="padding:12px;color:var(--critical);font-size:12px;text-align:center">${failed || 'Import failed'}</div>`;
+    return;
+  }
+  container.innerHTML = `<div class="import-summary">
+    <div class="is-stat"><div class="is-val" style="color:var(--accent)">${total}</div><div class="is-lbl">Records</div></div>
+    <div class="is-stat"><div class="is-val" style="color:var(--installed)">${success}</div><div class="is-lbl">Installed</div></div>
+    <div class="is-stat"><div class="is-val" style="color:var(--failed)">${failed}</div><div class="is-lbl">Failed</div></div>
+    <div class="is-stat"><div class="is-val" style="color:var(--pending)">${total - success - failed}</div><div class="is-lbl">Other</div></div>
+    <div style="flex:1;text-align:right;font-size:11px;color:var(--text-muted)">📄 ${filename}</div>
+  </div>`;
+}
+
+function renderImportedRecordsTable() {
+  const tbody = document.getElementById('imported-records-tbody');
+  if (!tbody) return;
+  const records = getDeploymentRecords();
+  if (records.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)">No deployment records imported yet. Drop a CSV file above or load demo data.</td></tr>';
+    return;
+  }
+  const recent = records.slice(-50).reverse();
+  tbody.innerHTML = recent.map(r => {
+    const host = r.Hostname || r.Computer || '—';
+    const pkg = r.Package || '—';
+    const status = r.Status || '—';
+    const source = r.source || '—';
+    const ts = r.Timestamp || r['Deploy Time'] || '—';
+    return `<tr>
+      <td class="mono">${host}</td>
+      <td>${pkg}</td>
+      <td>${deployStatusBadge(status)}</td>
+      <td><span class="badge badge-info">${source}</span></td>
+      <td style="font-size:11px;color:var(--text-muted)">${ts}</td>
+    </tr>`;
+  }).join('');
+}
+
+function clearDeploymentRecords() {
+  if (confirm('Clear all imported deployment records?')) {
+    localStorage.removeItem('security-tools:remflow-deployments');
+    renderImportedRecordsTable();
+    showToast('🗑️ Deployment records cleared');
+  }
+}
+
+function loadDemoDeploymentRecords() {
+  const demos = [];
+  const statuses = ['Installed', 'Installed', 'Installed', 'Pending', 'Pending', 'Failed'];
+  for (const host of HOSTS) {
+    if (Math.random() > 0.7) continue;
+    const status = pick(statuses);
+    demos.push({
+      Hostname: host,
+      Package: pick(['SEC-2026-001', 'SEC-2026-003', 'SEC-2026-005', 'SEC-2026-007', 'SEC-2026-010', 'SEC-2026-015']),
+      Version: '1.0.' + randInt(1, 99),
+      Status: status,
+      Timestamp: ago(randInt(0, 168)),
+      source: 'Demo',
+      importedAt: new Date().toISOString()
+    });
+  }
+  const existing = getDeploymentRecords();
+  const merged = mergeDeploymentRecords(existing, demos);
+  saveDeploymentRecords(merged);
+  renderImportedRecordsTable();
+  showToast(`📋 Loaded ${demos.length} demo deployment records`);
+}
+
+// ── Push to TheValidator ───────────────────────────────────────
+function pushToTheValidator(cveId) {
+  try {
+    const queue = JSON.parse(localStorage.getItem('security-tools:remediation-queue') || '[]');
+    // Check if already queued
+    const existing = queue.find(i => i.cve === cveId && i.status === 'pending');
+    if (existing) {
+      showToast(`⚠️ ${cveId} is already queued in TheValidator`);
+      return;
+    }
+    const rem = remediations.find(r => r.cve === cveId);
+    queue.push({
+      cve: cveId,
+      name: CVE_NAMES[cveId] || cveId,
+      kb: KBS[cveId] || 'n/a',
+      targets: rem ? rem.targets : [],
+      targetCount: rem ? rem.targetCount : 0,
+      status: 'pending',
+      source: 'RemFlow',
+      queuedAt: new Date().toISOString(),
+      coverage: rem ? rem.coverage : 0
+    });
+    localStorage.setItem('security-tools:remediation-queue', JSON.stringify(queue));
+    showToast(`📤 ${cveId} pushed to TheValidator validation queue`);
+  } catch(e) {
+    showToast('⚠️ Failed to push: ' + e.message);
+  }
+}
+
+function pushAllToTheValidator() {
+  const allRems = window.__allRems || remediations;
+  let count = 0;
+  allRems.forEach(r => {
+    try {
+      const queue = JSON.parse(localStorage.getItem('security-tools:remediation-queue') || '[]');
+      if (!queue.find(i => i.cve === r.cve && i.status === 'pending')) {
+        queue.push({
+          cve: r.cve,
+          name: r.name || CVE_NAMES[r.cve] || r.cve,
+          kb: r.kb || 'n/a',
+          targets: r.targets || [],
+          targetCount: r.targetCount || 0,
+          status: 'pending',
+          source: 'RemFlow',
+          queuedAt: new Date().toISOString(),
+          coverage: r.coverage || 0
+        });
+        localStorage.setItem('security-tools:remediation-queue', JSON.stringify(queue));
+        count++;
+      }
+    } catch(e) {}
+  });
+  showToast(`📤 Pushed ${count} remediations to TheValidator`);
+}
+
+// ── Assets ─────────────────────────────────────────────────────
 function renderAssets(){
   let html=`
 <div class="filter-group">
@@ -822,11 +1489,9 @@ ${allF.filter((f,i,a)=>a.findIndex(x=>x.hostname===f.hostname)===i).map(f=>`<tr 
 }
 
 function showDeployModal(depId,targetCount,targets){
-  // Create overlay
   const overlay=document.createElement('div');
   overlay.id='deploy-modal-overlay';
   overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9998;display:flex;align-items:center;justify-content:center';
-  // Create modal
   const modal=document.createElement('div');
   modal.id='deploy-modal';
   modal.style.cssText='background:var(--bg-elevated,#111830);border:1px solid var(--border,#1a2540);border-radius:12px;padding:32px;width:520px;max-width:90vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.5)';
@@ -852,19 +1517,15 @@ function showDeployModal(depId,targetCount,targets){
   `;
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
-  // Close on overlay click (not modal click)
   overlay.addEventListener('click',function(e){if(e.target===overlay&&document.getElementById('deploy-done-btn').style.display!=='none') overlay.remove();});
-  // Animate progress bar
   const bar=document.getElementById('deploy-progress-bar');
   const label=document.getElementById('deploy-progress-label');
   const statusLabel=document.getElementById('deploy-status-label');
   const assetList=document.getElementById('deploy-asset-list');
   const doneBtn=document.getElementById('deploy-done-btn');
   let progress=0;
-  const stepTime=30; // milliseconds between ticks
-  const totalSteps=100; // 0 to 100 in 1% increments
-  const tickDuration=3000/totalSteps; // 30ms per tick to complete in 3s
-  // Build per-asset lines
+  const totalSteps=100;
+  const tickDuration=3000/totalSteps;
   const statusTexts=['Queued','In Progress','Installing','Validating','Success'];
   targets.forEach((t,i)=>{
     const div=document.createElement('div');
@@ -878,12 +1539,10 @@ function showDeployModal(depId,targetCount,targets){
     assetList.appendChild(div);
   });
   const baseMsPerAsset=Math.max(100,Math.floor(2800/targets.length));
-  // Show assets one by one
   targets.forEach((t,i)=>{
     setTimeout(()=>{
       const el=document.getElementById('deploy-asset-'+i);
       if(el) el.style.opacity='1';
-      // Animate through statuses for this asset
       let sIdx=0;
       const sInterval=setInterval(()=>{
         const iconEl=document.getElementById('deploy-icon-'+i);
@@ -902,7 +1561,6 @@ function showDeployModal(depId,targetCount,targets){
       },Math.max(200,Math.floor(2400/targets.length)));
     },i*baseMsPerAsset);
   });
-  // Animate progress bar
   const progInterval=setInterval(()=>{
     progress+=1;
     if(bar) bar.style.width=progress+'%';
@@ -917,7 +1575,7 @@ function showDeployModal(depId,targetCount,targets){
       doneBtn.style.display='inline-block';
       doneBtn.onclick=function(){
         overlay.remove();
-        showToast('Deployment ${depId} completed successfully across '+targetCount+' assets');
+        showToast('Deployment '+depId+' completed successfully across '+targetCount+' assets');
       };
     }
   },tickDuration);
@@ -930,9 +1588,21 @@ function statusBadge(s){
     'Failed':'badge-critical','Rolled Back':'badge-medium',
     'Active':'badge-critical','Mitigated':'badge-info',
     'False Positive':'badge-medium','Risk Accepted':'badge-medium',
-    'Success':'badge-success','Timeout':'badge-critical'
+    'Timeout':'badge-critical'
   };
   return `<span class="badge ${map[s]||'badge-info'}">${s}</span>`;
+}
+
+function deployStatusBadge(s) {
+  if (!s) return `<span class="badge badge-info">—</span>`;
+  const ls = s.toLowerCase();
+  if (ls === 'installed' || ls === 'success' || ls === 'completed')
+    return `<span class="badge badge-installed">${s}</span>`;
+  if (ls === 'pending' || ls === 'queued' || ls === 'in progress')
+    return `<span class="badge badge-pending">${s}</span>`;
+  if (ls === 'failed' || ls === 'error' || ls === 'timeout')
+    return `<span class="badge badge-failed">${s}</span>`;
+  return `<span class="badge badge-info">${s}</span>`;
 }
 
 // ── API-backed actions ────────────────────────────────────────
@@ -977,6 +1647,14 @@ function exportCSV(){
   (window.__allFindings||[]).forEach(f=>{csv+=`${f.cve},"${f.name}",${f.severity},${f.hostname},${f.status}\n`});
   const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);a.download='remflow_findings.csv';a.click();
+}
+
+function exportRemCSV(){
+  const allRems = window.__allRems || remediations;
+  let csv='ID,CVE,Package,Targets,Coverage,Status,Created,Completed\n';
+  allRems.forEach(r=>{csv+=`${r.id},${r.cve},${r.kb||''},${r.targetCount},${r.coverage}%,${r.status},${r.created},${r.completed}\n`});
+  const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download='remflow_remediations.csv';a.click();
 }
 
 function showToast(msg){
@@ -1025,7 +1703,7 @@ navigateTo=function(page,param){
   _origNav(page,param);
   if(_settingHash) return;
   _settingHash=true;
-  const hashMap={'finding-detail':'finding','deployment-detail':'deployment','remediation-detail':'remediation','create-remediation':'create-remediation','deploy-fix':'deploy-fix','asset-detail':'asset'};
+  const hashMap={'finding-detail':'finding','deployment-detail':'deployment','remediation-detail':'remediation','create-remediation':'create-remediation','deploy-fix':'deploy-fix','asset-detail':'asset','datasources':'datasources'};
   const hashPage=hashMap[page]||page;
   try{
     if(param) history.replaceState(null,'','#/'+hashPage+'/'+encodeURIComponent(param));
@@ -1036,6 +1714,17 @@ navigateTo=function(page,param){
 };
 document.getElementById('syncTime').textContent='Last sync: '+ago(0);
 handleHash();
+
+// Debug error catcher
+window.onerror = function(msg, file, line, col, err) {
+  console.error('RemFlow error:', msg, file, line, col, err);
+  const toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--critical-bg);border:1px solid var(--critical);color:var(--text-primary);padding:12px 20px;border-radius:var(--radius);font-size:13px;z-index:999;box-shadow:var(--shadow);max-width:600px';
+  toast.innerHTML = `<strong>⚠️ Error</strong><br><span style="font-size:11px">${msg || 'Unknown error'} (${file}:${line})</span>`;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 8000);
+  return false;
+};
 </script>
 </body>
 </html>
