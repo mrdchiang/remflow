@@ -452,6 +452,7 @@ tr:hover td{background:var(--bg-hover)}
 <div class="section-label" style="margin-top:12px">Infrastructure</div>
 <button class="nav-item" onclick="navigateTo('assets')" data-page="assets"><span class="icon">🖥️</span><span>Assets</span></button>
 <button class="nav-item" onclick="navigateTo('datasources')" data-page="datasources"><span class="icon">📥</span><span>Data Sources</span></button>
+<button class="nav-item" onclick="navigateTo('pipeline')" data-page="pipeline"><span class="icon">🔄</span><span>Pipeline</span></button>
 </div>
 <div class="sidebar-footer">
 <div class="avatar">DC</div>
@@ -480,6 +481,7 @@ tr:hover td{background:var(--bg-hover)}
 <div class="page" id="page-assets"></div>
 <div class="page" id="page-asset-detail"></div>
 <div class="page" id="page-datasources"></div>
+<div class="page" id="page-pipeline"></div>
 
 </div></div>
 
@@ -737,7 +739,8 @@ function navigateTo(page, param){
     deployments:'Deployments',assets:'Assets',datasources:'Data Sources',
     'finding-detail':'CVE Detail','remediation-detail':'Remediation Detail',
     'deployment-detail':'Deployment Detail','create-remediation':'Create Remediation',
-    'deploy-fix':'Deploy Fix','asset-detail':'Asset Detail'
+    'deploy-fix':'Deploy Fix','asset-detail':'Asset Detail',
+    pipeline:'Pipeline'
   };
   document.getElementById('pageTitle').textContent=titles[page]||page;
   if(page==='dashboard')renderDashboard();
@@ -746,6 +749,7 @@ function navigateTo(page, param){
   else if(page==='deployments')renderDeployments();
   else if(page==='assets')renderAssets();
   else if(page==='datasources')renderDataSources();
+  else if(page==='pipeline')renderPipeline();
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebarOverlay').classList.remove('show');
   document.getElementById('page-'+page).scrollTop=0;
@@ -805,36 +809,77 @@ function renderDashboardHTML(dash){
   const svFindings = getShieldViewFindings();
   if (svFindings.length > 0) {
     const svCVEs = getShieldViewCVEs();
+    const lastImport = localStorage.getItem('security-tools:remflow-last-import') || 'never';
+    const lastImportDisplay = lastImport === 'never' ? 'never' : lastImport.slice(0,16).replace('T',' ');
     bannerHTML = `<div class="shieldview-banner">
       <span style="font-size:20px">🔗</span>
       <div style="flex:1">
         <div style="font-weight:600">Connected to ShieldView — ${svFindings.length} findings, ${svCVEs.length} CVEs</div>
-        <div style="font-size:12px;color:var(--text-secondary)">Auto-populated ${autoCreateShieldViewRemediations().length} remediation items</div>
+        <div style="font-size:12px;color:var(--text-secondary)">Last import: ${lastImportDisplay} — Use "Import from ShieldView" on Data Sources page to refresh</div>
       </div>
-      <button class="btn btn-sm btn-primary" onclick="navigateTo('remediations')">View Remediations</button>
+      <button class="btn btn-sm btn-primary" onclick="navigateTo('datasources')">📥 Import from ShieldView</button>
     </div>`;
   } else {
     bannerHTML = `<div class="shieldview-banner" style="border-color:var(--border-light);background:var(--bg-elevated)">
-      <span style="font-size:20px">📋</span>
+      <span style="font-size:20px">📥</span>
       <div style="flex:1">
-        <div style="font-weight:600">No ShieldView data detected</div>
-        <div style="font-size:12px;color:var(--text-muted)">Import findings in ShieldView to auto-populate remediation items. Using demo data below.</div>
+        <div style="font-weight:600">📥 No data imported — click Import from ShieldView or upload CSV</div>
+        <div style="font-size:12px;color:var(--text-muted)">Import findings from ShieldView to populate remediation items, or upload deployment data via CSV.</div>
       </div>
+      <button class="btn btn-sm btn-primary" onclick="navigateTo('datasources')">Go to Data Sources</button>
     </div>`;
   }
 
   // Cross-tool banner from TheValidator
   const pendingRem = checkCrossToolQueue();
-  let queueHTML = '';
-  if (pendingRem.length > 0) {
-    queueHTML = `<div style="background:var(--accent-glow);border:1px solid var(--accent);border-radius:var(--radius-lg);padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
-      <span style="font-size:20px">🔄</span>
-      <div style="flex:1">
-        <div style="font-weight:600">${pendingRem.length} remediation${pendingRem.length>1?'s':''} received from ShieldView</div>
-        <div style="font-size:12px;color:var(--text-secondary)">${pendingRem.map(p=>p.cve).join(', ')}</div>
+  const svImportedFindings = getShieldViewFindings();
+  const svImportedCVEs = getShieldViewCVEs();
+  const lastImport = localStorage.getItem('security-tools:remflow-last-import') || 'never';
+  const lastImportDisplay = lastImport === 'never' ? 'never' : lastImport.slice(0,16).replace('T',' ');
+
+  // Pipeline status bar
+  let pipelineHTML = '';
+  if (svImportedFindings.length > 0 || pendingRem.length > 0) {
+    pipelineHTML = `<div class="card" style="margin-bottom:16px;border-left:3px solid var(--accent)">
+      <div class="card-title" style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span>🔄 Pipeline Status</span>
+        <span style="font-size:11px;margin-left:auto"><a href="javascript:navigateTo('pipeline')" style="color:var(--accent);text-decoration:none">View Pipeline →</a></span>
       </div>
-      <button class="btn btn-sm btn-primary" onclick="navigateTo('remediations')">View</button>
-    </div>`;
+      <div style="display:flex;flex-direction:column;gap:8px">`;
+
+    // ShieldView import status
+    if (svImportedFindings.length > 0) {
+      pipelineHTML += `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;font-size:13px">
+        <span style="font-size:16px">📥</span>
+        <span style="flex:1"><strong>ShieldView:</strong> ${svImportedFindings.length} findings imported (${lastImportDisplay})</span>
+        <button class="btn btn-sm btn-ghost" onclick="navigateTo('datasources')">Re-import</button>
+      </div>`;
+    } else {
+      pipelineHTML += `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;font-size:13px">
+        <span style="font-size:16px">📥</span>
+        <span style="flex:1"><strong>ShieldView:</strong> No findings imported</span>
+        <button class="btn btn-sm btn-primary" onclick="navigateTo('datasources')">Import</button>
+      </div>`;
+    }
+
+    // TheValidator push status
+    if (pendingRem.length > 0) {
+      pipelineHTML += `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;font-size:13px">
+        <span style="font-size:16px">📤</span>
+        <span style="flex:1"><strong>TheValidator:</strong> ${pendingRem.length} items pushed (pending validation)</span>
+        <button class="btn btn-sm btn-ghost" onclick="navigateTo('remediations')">View</button>
+        <button class="btn btn-sm btn-primary" onclick="pushAllToTheValidator();renderDashboard()">Push All</button>
+      </div>`;
+    } else {
+      const allRemsCount = (window.__allRems || remediations).length;
+      pipelineHTML += `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;font-size:13px">
+        <span style="font-size:16px">📤</span>
+        <span style="flex:1"><strong>TheValidator:</strong> No items pushed — ${allRemsCount} remediations available</span>
+        <button class="btn btn-sm btn-primary" onclick="pushAllToTheValidator();setTimeout(()=>renderDashboard(),200)">Push All</button>
+      </div>`;
+    }
+
+    pipelineHTML += `</div></div>`;
   }
 
   let html=`<div class="stats-grid">
@@ -846,7 +891,7 @@ function renderDashboardHTML(dash){
 </div>`;
 
   html += bannerHTML;
-  html += queueHTML;
+  html += pipelineHTML;
   html+=`<div class="grid-2">
 <div class="card">
 <div class="card-title">Severity Distribution</div>
@@ -1008,7 +1053,7 @@ function renderRemediations(){
   <span class="ml-auto" style="font-size:12px;color:var(--text-muted)">${allRems.length} remediations</span>
 </div>
 <div class="btn-group">
-  <button class="btn btn-sm btn-primary" onclick="pushAllToTheValidator()">📤 Push All to TheValidator</button>
+  <button class="btn btn-primary" onclick="pushAllToTheValidator()" style="font-weight:700">📤 Push All to TheValidator</button>
   <button class="btn btn-sm" onclick="exportRemCSV()">📥 Export CSV</button>
 </div>
 <div style="overflow-x:auto;margin-top:12px"><table id="rem-table">
@@ -1316,10 +1361,36 @@ function viewDeployment(id){
 // ── Data Sources (CSV Import) ──────────────────────────────────
 function renderDataSources(){
   const records = getDeploymentRecords();
+  const svFindings = getShieldViewFindings();
+  const svCVEs = getShieldViewCVEs();
+  const lastImport = localStorage.getItem('security-tools:remflow-last-import') || 'never';
+  const lastImportDisplay = lastImport === 'never' ? 'never' : lastImport.slice(0,16).replace('T',' ');
+
   let html=`
 <div class="card" style="margin-bottom:24px">
   <div class="card-title">📥 Import Deployment Status</div>
   <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">Import CSV exports from SCCM or PDQ to track deployment status per asset. Data is stored in your browser's local storage.</p>
+</div>
+
+<div class="card" style="margin-bottom:24px;border-left:3px solid var(--accent)">
+  <div class="card-title">🔗 ShieldView Integration</div>
+  <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">Import findings from ShieldView to create remediation items. ShieldView stores findings in <code style="font-family:var(--font-mono);font-size:11px;background:var(--bg-hover);padding:1px 6px;border-radius:3px">security-tools:imported-findings</code>.</p>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+    <button class="btn btn-primary" onclick="previewShieldViewImport()" id="sv-preview-btn">📥 Preview ShieldView Data</button>
+    <span style="font-size:12px;color:var(--text-muted)" id="sv-status-text">
+      ${svFindings.length > 0 ? `✅ ${svFindings.length} findings currently loaded — last import: ${lastImportDisplay}` : '⚠️ No ShieldView data found in localStorage'}
+    </span>
+  </div>
+
+  <div id="shieldview-preview" style="display:none">
+    <div class="import-summary" style="margin-bottom:12px" id="sv-preview-summary"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="importFromShieldView()">✅ Import and Create Remediation Items</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('shieldview-preview').style.display='none'">Cancel</button>
+    </div>
+    <div id="sv-import-result" style="margin-top:12px"></div>
+  </div>
 </div>
 
 <div class="grid-2">
@@ -1374,6 +1445,155 @@ function renderDataSources(){
   }, 100);
 }
 
+// Pipeline page — shows explicit ShieldView → RemFlow → TheValidator flow
+function renderPipeline(){
+  const svFindings = getShieldViewFindings();
+  const svCVEs = getShieldViewCVEs();
+  const lastImport = localStorage.getItem('security-tools:remflow-last-import') || 'never';
+  const lastImportDisplay = lastImport === 'never' ? 'never' : lastImport.slice(0,16).replace('T',' ');
+  const pendingRem = checkCrossToolQueue();
+  const validatedRem = [];
+  try { validatedRem.push(...JSON.parse(localStorage.getItem('security-tools:validated-remediations') || '[]')); } catch(e) {}
+  const queueRem = [];
+  try { queueRem.push(...JSON.parse(localStorage.getItem('security-tools:remediation-queue') || '[]')); } catch(e) {}
+
+  let html = `<div class="card" style="margin-bottom:24px">
+    <div class="card-title">🔄 RemFlow Pipeline</div>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">Explicit data flow from ShieldView through RemFlow to TheValidator.</p>
+  </div>
+
+  <div style="display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap">
+    <div style="flex:1;min-width:280px">
+      <div class="card" style="border-left:3px solid var(--accent);height:100%">
+        <div class="card-title" style="font-size:15px">
+          <span style="font-size:20px;vertical-align:middle">📥</span> Step 1: ShieldView Import
+        </div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">
+          ShieldView stores findings in localStorage at<br>
+          <code style="font-family:var(--font-mono);font-size:11px;background:var(--bg-hover);padding:2px 6px;border-radius:3px">security-tools:imported-findings</code>
+        </div>
+        <div style="margin-bottom:12px">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Status:</div>`;
+
+  if (svFindings.length > 0) {
+    html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span style="color:var(--installed);font-weight:600">✅ ${svFindings.length} findings, ${svCVEs.length} CVEs</span>
+      <span style="font-size:11px;color:var(--text-muted)">Last import: ${lastImportDisplay}</span>
+    </div>`;
+  } else {
+    html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span style="color:var(--medium);font-weight:600">⚠️ No findings imported</span>
+    </div>`;
+  }
+
+  html += `<button class="btn btn-sm btn-primary" onclick="navigateTo('datasources')">📥 Go to Data Sources</button>
+        </div>
+        ${svFindings.length > 0 ? `<div style="margin-top:8px;padding:8px;background:var(--bg-hover);border-radius:var(--radius-sm);font-size:11px;color:var(--text-muted);font-family:var(--font-mono)">
+          ${svCVEs.slice(0,5).map(c => c.cve).join('<br>')}${svCVEs.length > 5 ? '<br>...and ' + (svCVEs.length - 5) + ' more' : ''}
+        </div>` : ''}
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:center;padding:0 8px;color:var(--accent);font-size:24px">
+      ➡
+    </div>
+
+    <div style="flex:1;min-width:280px">
+      <div class="card" style="border-left:3px solid var(--accent);height:100%">
+        <div class="card-title" style="font-size:15px">
+          <span style="font-size:20px;vertical-align:middle">🛠️</span> Step 2: RemFlow Remediations
+        </div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">
+          RemFlow creates remediation plans from imported findings. ${svCVEs.length > 0 ? svCVEs.length + ' CVEs ready for remediation.' : 'Import from ShieldView first.'}
+        </div>
+        ${svCVEs.length > 0 ? `<div style="margin-bottom:12px">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Remediations ready:</div>
+          <div style="font-size:12px;font-family:var(--font-mono);padding:8px;background:var(--bg-hover);border-radius:var(--radius-sm);max-height:120px;overflow-y:auto">
+            ${svCVEs.slice(0,8).map(c => `<div style="margin-bottom:4px">🔹 ${c.cve} — ${c.name ? c.name.substring(0,40) : 'Unknown'} (${c.severity})</div>`).join('')}
+            ${svCVEs.length > 8 ? `<div style="color:var(--text-muted)">...and ${svCVEs.length - 8} more</div>` : ''}
+          </div>
+        </div>` : ''}
+        <button class="btn btn-sm btn-primary" onclick="navigateTo('remediations')">🛠️ View Remediations</button>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:center;padding:0 8px;color:var(--accent);font-size:24px">
+      ➡
+    </div>
+
+    <div style="flex:1;min-width:280px">
+      <div class="card" style="border-left:3px solid var(--accent);height:100%">
+        <div class="card-title" style="font-size:15px">
+          <span style="font-size:20px;vertical-align:middle">📤</span> Step 3: Push to TheValidator
+        </div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">
+          Push remediation items to TheValidator for validation queue processing.
+        </div>
+        <div style="margin-bottom:12px">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Queue Status:</div>`;
+
+  if (pendingRem.length > 0) {
+    html += `<div style="color:var(--accent);font-weight:600;margin-bottom:4px">📤 ${pendingRem.length} items pending in TheValidator</div>`;
+    html += `<div style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono);margin-bottom:8px">${pendingRem.map(p => p.cve).join(', ')}</div>`;
+  } else {
+    html += `<div style="color:var(--medium);font-weight:600;margin-bottom:4px">⚠️ No items pushed yet</div>`;
+  }
+
+  if (validatedRem.length > 0) {
+    html += `<div style="color:var(--installed);font-weight:600;font-size:12px;margin-bottom:4px">✅ ${validatedRem.length} items validated by TheValidator</div>`;
+  }
+
+  html += `</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-sm btn-primary" onclick="pushAllToTheValidator();setTimeout(()=>renderPipeline(),300)">📤 Push All to TheValidator</button>
+          <button class="btn btn-sm btn-ghost" onclick="navigateTo('remediations')">View Queue</button>
+        </div>
+        ${queueRem.length > 0 ? `<div style="margin-top:12px;padding:8px;background:var(--bg-hover);border-radius:var(--radius-sm);font-size:11px">
+          <div style="font-weight:600;margin-bottom:4px">Queue Items (${queueRem.length} total)</div>
+          ${queueRem.slice(0,10).map(q => `<div style="font-family:var(--font-mono);margin-bottom:3px;display:flex;justify-content:space-between"><span>${q.cve}</span><span class="badge ${q.status==='pending'?'badge-warning':q.status==='validated'||q.status==='deployed'?'badge-success':'badge-info'}">${q.status}</span></div>`).join('')}
+          ${queueRem.length > 10 ? `<div style="color:var(--text-muted)">...and ${queueRem.length - 10} more</div>` : ''}
+        </div>` : ''}
+      </div>
+    </div>
+  </div>`;
+
+  // Timeline / Activity
+  html += `<div class="card">
+    <div class="card-title">📋 Activity Log</div>
+    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">Recent pipeline events</div>`;
+
+  const timelineItems = [];
+  if (lastImport !== 'never') {
+    timelineItems.push({ icon: '📥', desc: `ShieldView import completed — ${svFindings.length} findings`, ts: lastImport });
+  }
+  queueRem.forEach(q => {
+    if (q.queuedAt) timelineItems.push({ icon: '📤', desc: `Pushed ${q.cve} to TheValidator`, ts: q.queuedAt });
+  });
+  validatedRem.forEach(v => {
+    if (v.validatedAt) timelineItems.push({ icon: '✅', desc: `TheValidator validated ${v.cve}`, ts: v.validatedAt });
+  });
+
+  const sorted = timelineItems.sort((a,b) => b.ts.localeCompare(a.ts)).slice(0, 20);
+
+  if (sorted.length > 0) {
+    sorted.forEach(item => {
+      const tsDisplay = item.ts.slice(0,16).replace('T',' ');
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+        <span style="font-size:16px">${item.icon}</span>
+        <span style="flex:1">${item.desc}</span>
+        <span style="font-size:11px;color:var(--text-muted)">${tsDisplay}</span>
+      </div>`;
+    });
+  } else {
+    html += `<div style="padding:20px;text-align:center;color:var(--text-muted)">No pipeline activity yet. Import from ShieldView to get started.</div>`;
+  }
+
+  html += `</div>`;
+
+  document.getElementById('page-pipeline').innerHTML = html;
+}
+
+// ── Data Source drop zone helpers ──────────────────────────────
 function setupDropZone(dropZoneId, fileInputId) {
   const dz = document.getElementById(dropZoneId);
   if (!dz) return;
@@ -1587,6 +1807,63 @@ function loadDemoDeploymentRecords() {
 }
 
 // ── Push to TheValidator ───────────────────────────────────────
+function previewShieldViewImport() {
+  const findings = getShieldViewFindings();
+  const cves = getShieldViewCVEs();
+  const preview = document.getElementById('shieldview-preview');
+  const summary = document.getElementById('sv-preview-summary');
+
+  if (findings.length === 0) {
+    summary.innerHTML = `<div style="padding:12px;color:var(--medium);text-align:center">⚠️ No ShieldView findings found in localStorage at <code>security-tools:imported-findings</code>. Import findings in ShieldView first.</div>`;
+    preview.style.display = 'block';
+    return;
+  }
+
+  const newRems = autoCreateShieldViewRemediations();
+  const newCount = newRems.filter(r => !remediations.find(x => x.cve === r.cve)).length;
+
+  summary.innerHTML = `<div class="import-summary">
+    <div class="is-stat"><div class="is-val" style="color:var(--accent)">${findings.length}</div><div class="is-lbl">Findings</div></div>
+    <div class="is-stat"><div class="is-val" style="color:var(--high)">${cves.length}</div><div class="is-lbl">Unique CVEs</div></div>
+    <div class="is-stat"><div class="is-val" style="color:var(--low)">${newCount}</div><div class="is-lbl">New Remediations</div></div>
+    <div style="flex:1;text-align:right;font-size:11px;color:var(--text-muted)">From ShieldView localStorage</div>
+  </div>`;
+  preview.style.display = 'block';
+}
+
+function importFromShieldView() {
+  const findings = getShieldViewFindings();
+  if (findings.length === 0) {
+    showToast('⚠️ No ShieldView data to import');
+    return;
+  }
+
+  const newRems = autoCreateShieldViewRemediations();
+  let importedCount = 0;
+  newRems.forEach(sr => {
+    if (!remediations.find(r => r.cve === sr.cve)) {
+      remediations.push(sr);
+      importedCount++;
+    }
+  });
+
+  // Store timestamp
+  localStorage.setItem('security-tools:remflow-last-import', new Date().toISOString());
+
+  const result = document.getElementById('sv-import-result');
+  result.innerHTML = `<div style="padding:12px;background:var(--installed-bg);border:1px solid var(--installed);border-radius:var(--radius);color:var(--installed);font-weight:600">
+    ✅ Imported ${findings.length} findings — ${importedCount} remediation items created
+  </div>`;
+
+  // Update status text
+  const statusText = document.getElementById('sv-status-text');
+  if (statusText) {
+    statusText.textContent = `✅ ${findings.length} findings imported — last import: just now`;
+  }
+
+  showToast(`✅ Imported ${findings.length} findings — ${importedCount} remediation items created`);
+}
+
 function pushToTheValidator(cveId) {
   try {
     const queue = JSON.parse(localStorage.getItem('security-tools:remediation-queue') || '[]');
@@ -2451,7 +2728,7 @@ navigateTo=function(page,param){
   _origNav(page,param);
   if(_settingHash) return;
   _settingHash=true;
-  const hashMap={'finding-detail':'finding','deployment-detail':'deployment','remediation-detail':'remediation','create-remediation':'create-remediation','deploy-fix':'deploy-fix','asset-detail':'asset','datasources':'datasources'};
+  const hashMap={'finding-detail':'finding','deployment-detail':'deployment','remediation-detail':'remediation','create-remediation':'create-remediation','deploy-fix':'deploy-fix','asset-detail':'asset','datasources':'datasources','pipeline':'pipeline'};
   const hashPage=hashMap[page]||page;
   try{
     if(param) history.replaceState(null,'','#/'+hashPage+'/'+encodeURIComponent(param));
