@@ -744,18 +744,72 @@ window.Prompts = Prompts;
 const KEYS = {
   CONTRACT_VERSION:       'security-tools:contract-version',
   ERROR_LOG:              'security-tools:error-log',
-  THEME:                  'remflow-theme',
+  THEME:                  'security-tools:remflow-theme',
   DEPLOYMENTS:            'security-tools:remflow-deployments',
   IMPORTED_FINDINGS:      'security-tools:imported-findings',
   LAST_IMPORT:            'security-tools:remflow-last-import',
   VALIDATED_REMEDIATIONS: 'security-tools:validated-remediations',
   REMEDIATION_QUEUE:      'security-tools:remediation-queue',
-  RING_CONFIG:            'remflow-ring-config',
-  RING_REMEDIATIONS:      'remflow-ring-remediations',
+  VERIFIED_QUEUE:         'security-tools:verified-queue',
+  LAUNCHPAD_QUEUE:        'security-tools:launchpad-queue',
+  RING_CONFIG:            'security-tools:remflow-ring-config',
+  RING_REMEDIATIONS:      'security-tools:remflow-ring-remediations',
   CHANGE_REQUESTS:         'security-tools:change-requests',
-  MAINTENANCE_WINDOWS:     'remflow-maintenance-windows',
-  BLACKOUT_DATES:          'remflow-blackout-dates'
+  MAINTENANCE_WINDOWS:     'security-tools:remflow-mw-config',
+  BLACKOUT_DATES:          'security-tools:remflow-blackout-dates'
 };
+
+// ════ Key Migration (v1 → v2) ════════════════════════════════════
+(function migrateKeysV2() {
+  const MIGRATIONS = [
+    { old: 'remflow-theme',             newKey: KEYS.THEME },
+    { old: 'remflow-ring-config',       newKey: KEYS.RING_CONFIG },
+    { old: 'remflow-ring-remediations', newKey: KEYS.RING_REMEDIATIONS },
+    { old: 'remflow-maintenance-windows', newKey: KEYS.MAINTENANCE_WINDOWS },
+    { old: 'remflow-blackout-dates',    newKey: KEYS.BLACKOUT_DATES },
+  ];
+  try {
+    MIGRATIONS.forEach(function(m) {
+      var oldData = localStorage.getItem(m.old);
+      if (oldData !== null) {
+        // Only migrate if the new key doesn't already have data
+        if (localStorage.getItem(m.newKey) === null) {
+          localStorage.setItem(m.newKey, oldData);
+        }
+        // Leave original key intact for v1 compatibility during rollout
+      }
+    });
+  } catch(e) { /* silent — migration is best-effort at load time */ }
+})();
+
+// ════ Async Storage Adapter (dynamic import + vendored fallback) ──
+(function initStorageAdapter() {
+  window.__remflowStorageAdapter = null;
+  var vendoredAdapter = {
+    getItem: function(key) { return localStorage.getItem(key); },
+    setItem: function(key, value) { localStorage.setItem(key, value); },
+    removeItem: function(key) { localStorage.removeItem(key); },
+    clear: function() { localStorage.clear(); }
+  };
+  // Try dynamic import from launchpad; fall back to vendored localStorage
+  try {
+    import('http://localhost:11434/v1/launchpad/storage-adapter.js')
+      .then(function(mod) {
+        window.__remflowStorageAdapter = mod.default || mod;
+        console.log('[RemFlow] ✅ Launchpad storage adapter loaded');
+      })
+      .catch(function() {
+        window.__remflowStorageAdapter = vendoredAdapter;
+        console.log('[RemFlow] ⚠️ Using vendored localStorage fallback');
+      });
+  } catch(e) {
+    window.__remflowStorageAdapter = vendoredAdapter;
+  }
+  // Synchronous fallback is always immediately available
+  if (!window.__remflowStorageAdapter) {
+    window.__remflowStorageAdapter = vendoredAdapter;
+  }
+})();
 
 // ════ Contract Version Check ─────────────────────────────────(function(){  var CV = KEYS.CONTRACT_VERSION;  var VER = '1.0.0';  try {    var stored = localStorage.getItem(CV);    if (!stored) { localStorage.setItem(CV, VER); return; }    if (stored !== VER) {      var b = document.createElement('div');      b.style.cssText = 'background:#352215;color:#ff7722;padding:8px 16px;text-align:center;font-size:12px;font-family:monospace;cursor:pointer;z-index:99999;position:relative';      b.textContent = '⚠ Contract v' + VER + ' ≠ stored v' + stored + '. Some features may not work. Click to dismiss.';      b.onclick = function(){ b.remove(); localStorage.setItem(CV, VER); };      document.body.insertBefore(b, document.body.firstChild);    }  } catch(e) {}})();
 // ════ Error Catcher ──────────────────────────────────────────
@@ -2951,7 +3005,8 @@ function markRemediationComplete(cveId) {
     const item = queue.find(i => i.cve === cveId);
     if (item && !validated.find(v => v.cve === cveId)) {
       validated.push({...item, status: 'validated', validatedAt: new Date().toISOString()});
-      localStorage.setItem(KEYS.VALIDATED_REMEDIATIONS, JSON.stringify(validated));
+      // NOTE: TheValidator is the canonical writer for validated-remediations.
+      // In-memory array updated; persistence is handled by TheValidator.
     }
   } catch(e) {}
 }
