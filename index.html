@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://localhost:11434;">
 <title>RemFlow — Remediation Intelligence</title>
 <style>
 :root {
@@ -178,6 +178,252 @@ tr:hover td{background:var(--bg-hover)}
   gap:12px;
 }
 
+/* ── KB / PowerShell Code Blocks ─────────────────────── */
+.ps-code-block {
+  background: #0a0f1c;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin: 8px 0;
+  position: relative;
+}
+.ps-code-block .ps-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg-hover);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.ps-code-block .ps-header .ps-label {
+  font-weight: 600;
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+.ps-code-block .ps-header .copy-btn {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  padding: 3px 8px;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.ps-code-block .ps-header .copy-btn:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.ps-code-block .ps-header .copy-btn.copied {
+  background: var(--low);
+  border-color: var(--low);
+  color: #fff;
+}
+.ps-code-block pre {
+  margin: 0;
+  padding: 12px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: #c0d0e0;
+  white-space: pre;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.ps-code-block pre .comment { color: #6a8a6a; }
+.ps-code-block pre .keyword { color: #5599dd; }
+.ps-code-block pre .string { color: #ce9a6e; }
+.ps-code-block pre .cmdlet { color: #ddcc66; }
+.ps-code-block pre .param { color: #88bbdd; }
+.ps-code-block .ps-toggle {
+  cursor: pointer;
+  user-select: none;
+}
+.ps-code-block.collapsed pre { display: none; }
+.kb-badge {
+  display: inline-block;
+  background: var(--accent-glow);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all .15s;
+}
+.kb-badge:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ── AI Remediation Chat Panel ────────────────────────── */
+.ai-panel-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 2000;
+  display: none;
+}
+.ai-panel-overlay.open { display: block; }
+.ai-panel {
+  position: fixed;
+  top: 0; right: -480px;
+  width: 440px; max-width: 95vw;
+  height: 100vh;
+  background: var(--bg-elevated);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  z-index: 2001;
+  transition: right .3s ease;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.4);
+}
+.ai-panel.open { right: 0; }
+.ai-panel-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+}
+.ai-panel-header .ai-title {
+  font-weight: 700;
+  font-size: 15px;
+  flex: 1;
+}
+.ai-panel-header .close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+.ai-panel-header .close-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.ai-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ai-chat-bubble {
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  line-height: 1.55;
+  max-width: 90%;
+  word-wrap: break-word;
+}
+.ai-chat-bubble.user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.ai-chat-bubble.assistant {
+  align-self: flex-start;
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+  border-bottom-left-radius: 4px;
+}
+.ai-chat-bubble.assistant pre {
+  background: #0a0f1c;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  overflow-x: auto;
+  margin: 8px 0;
+  white-space: pre-wrap;
+}
+.ai-chat-bubble.assistant strong { color: var(--accent); }
+.ai-chat-bubble.system-msg {
+  align-self: center;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-align: center;
+  max-width: 100%;
+  padding: 4px 12px;
+}
+.ai-panel-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+}
+.ai-panel-footer textarea {
+  flex: 1;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  resize: none;
+  min-height: 40px;
+  max-height: 100px;
+}
+.ai-panel-footer textarea:focus { outline: none; border-color: var(--accent); }
+.ai-panel-footer .send-btn {
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ai-panel-footer .send-btn:hover { background: var(--accent-dim); }
+.ai-panel-footer .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ai-typing { display: flex; gap: 4px; padding: 8px 16px; }
+.ai-typing span {
+  width: 6px; height: 6px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  animation: ai-bounce 1.2s infinite;
+}
+.ai-typing span:nth-child(2) { animation-delay: .2s; }
+.ai-typing span:nth-child(3) { animation-delay: .4s; }
+@keyframes ai-bounce {
+  0%,60%,100% { transform: translateY(0); }
+  30% { transform: translateY(-6px); }
+}
+.ai-remediate-btn {
+  background: linear-gradient(135deg, var(--accent), #7c3aed);
+  border: 1px solid var(--accent);
+}
+.ai-remediate-btn:hover {
+  background: linear-gradient(135deg, var(--accent-dim), #6d28d9);
+}
+.ai-offline-banner {
+  background: var(--bg-hover);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 @media(max-width:768px){
   .sidebar{position:fixed;left:-240px;transition:left .2s;height:100vh;z-index:100}
   .sidebar.open{left:0}
@@ -236,6 +482,26 @@ tr:hover td{background:var(--bg-hover)}
 <div class="page" id="page-datasources"></div>
 
 </div></div>
+
+<!-- ════ AI Remediation Chat Panel ──────────────────────────────── -->
+<div class="ai-panel-overlay" id="aiPanelOverlay" onclick="closeAIPanel(event)"></div>
+<div class="ai-panel" id="aiPanel">
+  <div class="ai-panel-header">
+    <span style="font-size:20px">🪄</span>
+    <div class="ai-title">AI Remediation Assistant</div>
+    <div style="font-size:10px;color:var(--text-muted);margin-right:4px">via Ollama</div>
+    <button class="close-btn" onclick="closeAIPanel()">✕</button>
+  </div>
+  <div class="ai-panel-body" id="aiPanelBody">
+    <div class="ai-chat-bubble system-msg" id="aiInitialMsg">
+      Select a remediation to analyze, or ask any question about vulnerabilities and remediation strategies.
+    </div>
+  </div>
+  <div class="ai-panel-footer">
+    <textarea id="aiChatInput" placeholder="Ask about this remediation..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAIMessage();}"></textarea>
+    <button class="send-btn" id="aiSendBtn" onclick="sendAIMessage()">Send</button>
+  </div>
+</div>
 
 <script>
 // ════ Error Catcher ──────────────────────────────────────────
@@ -879,7 +1145,7 @@ function viewRemediation(id){
     </div>
   </div>
 </div>
-<div class="btn-group"><button class="btn btn-sm btn-primary" onclick="pushToTheValidator('${r.cve}')">📤 Push to TheValidator</button><button class="btn btn-sm" onclick="showToast('Rollback initiated for ${r.id}')">🔄 Rollback</button><button class="btn btn-sm" onclick="showToast('Generating report for ${r.id}...')">📄 View Report</button></div>
+<div class="btn-group"><button class="btn btn-sm btn-primary" onclick="pushToTheValidator('${r.cve}')">📤 Push to TheValidator</button><button class="btn btn-sm" onclick="showToast('Rollback initiated for ${r.id}')">🔄 Rollback</button><button class="btn btn-sm" onclick="showToast('Generating report for ${r.id}...')">📄 View Report</button><button class="btn btn-sm ai-remediate-btn" onclick="openAIForRemediation('${r.id}')">🪄 AI Remediation</button></div>
 </div>
 <div class="card">
 <div class="card-title">Deployment Progress by Asset</div>
@@ -899,8 +1165,59 @@ function viewRemediation(id){
   }
   if(r.targets.length>15)html+=`<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">...and ${r.targets.length-15} more assets</td></tr>`;
   html+=`</table></div></div>`;
+
+  // ── KB Detection & PowerShell Commands ───────────────────
+  const kbText = (r.kb || '') + ' ' + (r.cve || '') + ' ' + (r.name || '') + ' ' + (CVE_NAMES[r.cve] || '');
+  const detectedKBs = detectKB(kbText);
+  if (detectedKBs.length > 0 || r.kb) {
+    const kbList = detectedKBs.length > 0 ? detectedKBs : [r.kb];
+    const sampleOS = r.targets && r.targets.length > 0
+      ? (assets.find(a => a.hostname === r.targets[0]) || {}).os || 'Windows Server 2022'
+      : 'Windows Server 2022';
+    html += `<div class="card" style="margin-top:16px">
+      <div class="card-title">🔧 PowerShell Remediation Commands</div>`;
+    html += `<div style="margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">`;
+    kbList.forEach(kb => {
+      html += `<span class="kb-badge" onclick="copyKBNumber('${escHtml(kb)}')" title="Click to copy">${escHtml(kb)}</span>`;
+    });
+    html += `<span style="font-size:11px;color:var(--text-muted)">Detected in solution text — click KB to copy</span></div>`;
+    kbList.forEach(kb => {
+      const psBlocks = generatePSCommands(kb, { os: sampleOS, version: kb, app: r.name || '' });
+      html += renderPSCommands(psBlocks, 'rem-' + r.id + '-' + kb.replace(/[^a-zA-Z0-9]/g, ''));
+    });
+    html += `</div>`;
+  }
+
   document.getElementById('page-remediation-detail').innerHTML=html;
   navigateTo('remediation-detail');
+}
+
+function openAIForRemediation(remId) {
+  const allRems = window.__allRems || remediations;
+  const r = allRems.find(x => x.id === remId);
+  if (!r) return;
+
+  const sampleOS = r.targets && r.targets.length > 0
+    ? (assets.find(a => a.hostname === r.targets[0]) || {}).os || 'Windows Server 2022'
+    : 'Windows Server 2022';
+
+  const context = {
+    cve: r.cve,
+    name: r.name || CVE_NAMES[r.cve] || r.cve,
+    severity: r.status === 'Completed' ? 'Low' : (r.status === 'Failed' ? 'Critical' : 'Medium'),
+    os: sampleOS,
+    solution: 'Apply ' + (r.kb || 'vendor patch') + ' for ' + r.cve,
+    kb: r.kb || 'n/a',
+    extra: 'Affected assets: ' + (r.targets ? r.targets.slice(0, 5).join(', ') + (r.targets.length > 5 ? ' +' + (r.targets.length - 5) + ' more' : '') : 'unknown') + '. Current coverage: ' + r.coverage + '%. Status: ' + r.status + '.'
+  };
+
+  openAIPanel(context);
+}
+
+function copyKBNumber(kb) {
+  navigator.clipboard.writeText(kb).then(() => {
+    showToast('📋 ' + kb + ' copied to clipboard');
+  }).catch(() => showToast('📋 ' + kb));
 }
 
 // ── Deployments ────────────────────────────────────────────────
@@ -1683,6 +2000,437 @@ function markRemediationComplete(cveId) {
     }
   } catch(e) {}
 }
+// ── KB Detection & PowerShell Command Generation ─────────────
+function detectKB(text) {
+  if (!text) return [];
+  const patterns = [
+    /\bKB\s*(\d{6,8})\b/gi,
+    /\bkb\s*(\d{6,8})\b/g,
+    /KB(\d{6,8})\b/gi,
+    /kb(\d{6,8})\b/g,
+    /SEC-(\d{4}-\d{3,4})\b/gi,
+  ];
+  const found = new Set();
+  for (const pat of patterns) {
+    let m;
+    while ((m = pat.exec(text)) !== null) {
+      const kb = 'KB' + m[1];
+      found.add(kb.toUpperCase());
+    }
+  }
+  return [...found].slice(0, 5);
+}
+
+function detectOS(osName) {
+  if (!osName) return 'windows';
+  const n = osName.toLowerCase();
+  if (n.includes('server')) return 'windows-server';
+  if (n.includes('windows')) return 'windows';
+  if (n.includes('mac') || n.includes('os x')) return 'macos';
+  if (n.includes('rhel') || n.includes('ubuntu') || n.includes('linux')) return 'linux';
+  return 'windows';
+}
+
+function generatePSCommands(kbId, context) {
+  const os = detectOS(context.os || '');
+  const kb = kbId.toUpperCase().replace(/^KB/i, 'KB');
+
+  const blocks = [];
+
+  if (os === 'windows' || os === 'windows-server') {
+    // Check if installed
+    blocks.push({
+      label: 'Check Installation Status',
+      platform: 'PowerShell (Windows)',
+      code: `# Verify if ${kb} is already installed
+Get-HotFix -Id ${kb} -ErrorAction SilentlyContinue
+
+# Alternative: search all installed updates
+Get-HotFix | Where-Object HotFixID -like "*${kb.replace('KB','')}*"
+
+# Or via WMI/CIM
+Get-CimInstance -ClassName Win32_QuickFixEngineering | Where-Object HotFixID -eq "${kb}"`
+    });
+
+    // Download
+    blocks.push({
+      label: 'Download from Microsoft Update Catalog',
+      platform: 'PowerShell (Windows)',
+      code: `# Download ${kb} from Microsoft Update Catalog
+$kbUrl = "https://catalog.s.download.windowsupdate.com/c/msdownload/update/software/secu/${kb}.msu"
+$outPath = "$env:TEMP\\${kb}.msu"
+
+# Download with progress
+Invoke-WebRequest -Uri $kbUrl -OutFile $outPath -UseBasicParsing
+
+# Verify download
+if (Test-Path $outPath) {
+    Write-Host "Downloaded: $((Get-Item $outPath).Length / 1MB) MB" -ForegroundColor Green
+} else {
+    Write-Host "Download failed - check catalog URL" -ForegroundColor Red
+}`
+    });
+
+    // Install
+    blocks.push({
+      label: 'Install Update',
+      platform: 'PowerShell (Windows)',
+      code: `# Install ${kb} silently
+$msuPath = "$env:TEMP\\${kb}.msu"
+
+# Option A: wusa.exe (built-in)
+Start-Process -FilePath "wusa.exe" -ArgumentList "`"$msuPath`" /quiet /norestart" -Wait -NoNewWindow
+
+# Option B: DISM (for offline/servicing)
+# dism /online /add-package /packagepath:"$env:TEMP\\${kb}.msu"
+
+# Option C: PSWindowsUpdate module (if installed)
+if (Get-Module -ListAvailable -Name PSWindowsUpdate) {
+    Import-Module PSWindowsUpdate
+    Install-WindowsUpdate -KBArticleID "${kb}" -AcceptAll -AutoReboot
+} else {
+    Write-Host "Install PSWindowsUpdate: Install-Module PSWindowsUpdate" -ForegroundColor Yellow
+}
+
+# Verify installation
+Get-HotFix -Id ${kb} -ErrorAction SilentlyContinue
+if ($?) { Write-Host "${kb} installed successfully" -ForegroundColor Green }`
+    });
+
+    // Rollback
+    blocks.push({
+      label: 'Rollback / Uninstall',
+      platform: 'PowerShell (Windows)',
+      code: `# Uninstall ${kb} if needed
+wusa.exe /uninstall /kb:${kb.replace('KB','')} /quiet /norestart
+
+# Check pending reboot
+if (Get-ItemProperty "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager" -Name PendingFileRenameOperations -ErrorAction SilentlyContinue) {
+    Write-Host "⚠️ Pending reboot required" -ForegroundColor Yellow
+}`
+    });
+
+    if (context.version) {
+      blocks.push({
+        label: `Verify Application Version (${context.version})`,
+        platform: 'PowerShell (Windows)',
+        code: `# Check installed application version
+Get-ItemProperty "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*" |
+    Where-Object DisplayName -like "*${context.app || 'Application'}*" |
+    Select-Object DisplayName, DisplayVersion, Publisher, InstallDate
+
+# Also check 32-bit registry on 64-bit systems
+Get-ItemProperty "HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*" |
+    Where-Object DisplayName -like "*${context.app || 'Application'}*" |
+    Select-Object DisplayName, DisplayVersion`
+      });
+    }
+  } else if (os === 'linux') {
+    blocks.push({
+      label: 'Check & Apply Patch (Linux)',
+      platform: 'Bash (Linux)',
+      code: `# Check current kernel/packages
+uname -r
+rpm -qa --last | head -20   # RHEL/CentOS
+dpkg -l | grep -i security   # Debian/Ubuntu
+
+# Apply updates
+sudo yum update --security   # RHEL/CentOS
+sudo apt update && sudo apt upgrade -y  # Ubuntu/Debian
+
+# Verify after reboot
+echo "Reboot and verify: $(uname -r)"`
+    });
+  } else if (os === 'macos') {
+    blocks.push({
+      label: 'Check & Apply Update (macOS)',
+      platform: 'Terminal (macOS)',
+      code: `# List available updates
+softwareupdate -l
+
+# Install all updates
+sudo softwareupdate -i -a
+
+# Install specific update
+sudo softwareupdate -i "${kb}"
+
+# Verify after reboot
+sw_vers`
+    });
+  }
+
+  return blocks;
+}
+
+function renderPSCommands(blocks, blockId) {
+  if (!blocks || blocks.length === 0) return '';
+  const uid = blockId || ('ps-' + Math.random().toString(36).slice(2,8));
+  return blocks.map((b, i) => `
+<div class="ps-code-block" id="${uid}-${i}">
+  <div class="ps-header" onclick="togglePSCodeBlock('${uid}-${i}')">
+    <span class="ps-toggle">${'▾ '}<span class="ps-label">${escHtml(b.label)}</span> <span style="font-size:10px;color:var(--text-muted)">${escHtml(b.platform)}</span></span>
+    <button class="copy-btn" onclick="event.stopPropagation();copyPSCode('${uid}-${i}')" title="Copy to clipboard">📋 Copy</button>
+  </div>
+  <pre id="${uid}-${i}-code">${escHtml(b.code)}</pre>
+</div>`).join('');
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function togglePSCodeBlock(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('collapsed');
+}
+
+function copyPSCode(blockId) {
+  const codeEl = document.getElementById(blockId + '-code');
+  if (!codeEl) return;
+  const text = codeEl.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('#' + blockId + ' .copy-btn');
+    if (btn) {
+      btn.textContent = '✓ Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = '📋 Copy'; btn.classList.remove('copied'); }, 2000);
+    }
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('📋 Copied to clipboard');
+  });
+}
+
+// ── AI Remediation Assistant (Ollama) ────────────────────────
+let aiContext = null;
+let aiIsStreaming = false;
+
+function openAIPanel(context) {
+  aiContext = context || null;
+  document.getElementById('aiPanelOverlay').classList.add('open');
+  document.getElementById('aiPanel').classList.add('open');
+  document.getElementById('aiChatInput').focus();
+
+  // Clear old messages if this is a new context
+  if (context) {
+    const body = document.getElementById('aiPanelBody');
+    body.innerHTML = '';
+    const ctxMsg = document.createElement('div');
+    ctxMsg.className = 'ai-chat-bubble system-msg';
+    ctxMsg.textContent = `Analyzing: ${context.cve} — ${context.name || ''}`;
+    body.appendChild(ctxMsg);
+
+    // Auto-send initial prompt
+    setTimeout(() => sendAIPrompt(context), 400);
+  }
+}
+
+function closeAIPanel(event) {
+  if (event && event.target !== document.getElementById('aiPanelOverlay')) return;
+  document.getElementById('aiPanelOverlay').classList.remove('open');
+  document.getElementById('aiPanel').classList.remove('open');
+}
+
+function sendAIMessage() {
+  const input = document.getElementById('aiChatInput');
+  const text = input.value.trim();
+  if (!text || aiIsStreaming) return;
+  input.value = '';
+
+  const body = document.getElementById('aiPanelBody');
+  const userBubble = document.createElement('div');
+  userBubble.className = 'ai-chat-bubble user';
+  userBubble.textContent = text;
+  body.appendChild(userBubble);
+  body.scrollTop = body.scrollHeight;
+
+  // Show typing indicator
+  const typing = showAITyping();
+
+  const systemPrompt = aiContext
+    ? `You are a Windows systems engineer. Help remediate this vulnerability. Context: CVE: ${aiContext.cve}, Name: ${aiContext.name}, Severity: ${aiContext.severity}, OS: ${aiContext.os || 'Windows Server 2022'}. Solution: ${aiContext.solution || 'Apply vendor patch'}. ${aiContext.extra || ''}`
+    : 'You are a Windows systems engineer. Help remediate vulnerabilities.';
+
+  callOllama(systemPrompt, text).then(response => {
+    removeAITyping(typing);
+    const asstBubble = document.createElement('div');
+    asstBubble.className = 'ai-chat-bubble assistant';
+    asstBubble.innerHTML = formatAIResponse(response);
+    body.appendChild(asstBubble);
+    body.scrollTop = body.scrollHeight;
+  }).catch(err => {
+    removeAITyping(typing);
+    const errBubble = document.createElement('div');
+    errBubble.className = 'ai-chat-bubble system-msg';
+    errBubble.innerHTML = `<span style="color:var(--critical)">⚠️ Ollama unavailable: ${escHtml(err.message)}</span>
+      <div class="ai-offline-banner" style="margin-top:8px">
+        <span>🔌</span>
+        <span>Make sure Ollama is running on <strong>localhost:11434</strong>. <br>Start it: <code>ollama serve</code></span>
+      </div>`;
+    body.appendChild(errBubble);
+    body.scrollTop = body.scrollHeight;
+  });
+}
+
+function sendAIPrompt(context) {
+  if (!context) return;
+
+  const body = document.getElementById('aiPanelBody');
+  const userBubble = document.createElement('div');
+  userBubble.className = 'ai-chat-bubble user';
+  userBubble.textContent = 'Analyze this vulnerability and provide a step-by-step remediation plan.';
+  body.appendChild(userBubble);
+  body.scrollTop = body.scrollHeight;
+
+  const typing = showAITyping();
+
+  const systemPrompt = `You are a senior Windows systems engineer with 20 years experience in vulnerability remediation. You work in an enterprise environment with Windows Server, Windows 10/11, and Linux servers.
+
+Analyze this vulnerability and provide:
+1. **Root Cause Assessment** — What is the vulnerability and how does it work?
+2. **Step-by-Step PowerShell Remediation** — Exact PowerShell commands to fix it
+3. **Verification Steps** — How to confirm the fix was applied
+4. **Rollback Plan** — How to undo the change if needed
+
+Context:
+- CVE: ${context.cve}
+- Name/Description: ${context.name || 'Unknown'}
+- Severity: ${context.severity || 'Medium'}
+- Affected OS: ${context.os || 'Windows Server 2022'}
+- Vendor Solution: ${context.solution || 'Apply vendor patch/update'}
+- KB Reference: ${context.kb || 'None'}
+${context.extra || ''}
+
+Be specific with PowerShell cmdlets, registry paths, service names, and verification commands.`;
+
+  const userPrompt = `Generate a complete remediation plan for ${context.cve}.`;
+
+  callOllama(systemPrompt, userPrompt).then(response => {
+    removeAITyping(typing);
+    const asstBubble = document.createElement('div');
+    asstBubble.className = 'ai-chat-bubble assistant';
+    asstBubble.innerHTML = formatAIResponse(response);
+    body.appendChild(asstBubble);
+    body.scrollTop = body.scrollHeight;
+  }).catch(err => {
+    removeAITyping(typing);
+    const errBubble = document.createElement('div');
+    errBubble.className = 'ai-chat-bubble system-msg';
+    errBubble.innerHTML = `<span style="color:var(--critical)">⚠️ Ollama is offline or unreachable</span>
+      <div class="ai-offline-banner" style="margin-top:8px">
+        <span>🔌</span>
+        <span>Ollama connection failed. Start with: <code>ollama serve</code> and ensure model is pulled: <code>ollama pull llama3.2</code></span>
+      </div>
+      <div style="margin-top:12px;font-size:12px;color:var(--text-secondary)">
+        <strong>Offline Guidance for ${context.cve || 'this vulnerability'}:</strong><br>
+        ${generateOfflineGuidance(context)}
+      </div>`;
+    body.appendChild(errBubble);
+    body.scrollTop = body.scrollHeight;
+  });
+}
+
+function showAITyping() {
+  const body = document.getElementById('aiPanelBody');
+  const typing = document.createElement('div');
+  typing.className = 'ai-typing';
+  typing.id = 'ai-typing-indicator';
+  typing.innerHTML = '<span></span><span></span><span></span>';
+  body.appendChild(typing);
+  body.scrollTop = body.scrollHeight;
+  return typing;
+}
+
+function removeAITyping(el) {
+  if (el && el.parentNode) el.remove();
+}
+
+function formatAIResponse(text) {
+  if (!text) return '<em style="color:var(--text-muted)">No response received.</em>';
+  let html = escHtml(text);
+  // Bold: **text**
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // Code blocks: ``` ... ```
+  html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    return `<pre><code>${escHtml(code.trim())}</code></pre>`;
+  });
+  // Inline code: `code`
+  html = html.replace(/`([^`]+)`/g, '<code style="background:var(--bg-hover);padding:1px 4px;border-radius:3px;font-family:var(--font-mono);font-size:11px">$1</code>');
+  // Numbered lists
+  html = html.replace(/^(\d+)\.\s+(.+)$/gm, '<strong>$1.</strong> $2');
+  // Line breaks
+  html = html.replace(/\n/g, '<br>');
+  return html;
+}
+
+async function callOllama(systemPrompt, userPrompt) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+  try {
+    const resp = await fetch('http://localhost:11434/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama3.2',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        stream: false,
+        options: { temperature: 0.3, num_predict: 2048 }
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!resp.ok) {
+      throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+    }
+
+    const data = await resp.json();
+    return data.message?.content || data.response || JSON.stringify(data);
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
+function generateOfflineGuidance(ctx) {
+  if (!ctx) return '';
+  const cve = ctx.cve || '';
+  const sev = (ctx.severity || '').toLowerCase();
+  const os = (ctx.os || '').toLowerCase();
+
+  let guidance = '<ul style="margin-top:4px;padding-left:20px">';
+  guidance += '<li>Review the vendor advisory for ' + escHtml(cve) + '</li>';
+  guidance += '<li>Check your patch management system (SCCM/WSUS) for available updates</li>';
+
+  if (os.includes('windows')) {
+    guidance += '<li>Run: <code>Get-HotFix</code> to check currently installed updates</li>';
+    guidance += '<li>Use <code>Get-WindowsUpdate</code> from PSWindowsUpdate module</li>';
+  } else if (os.includes('linux')) {
+    guidance += '<li>Run: <code>yum check-update</code> or <code>apt list --upgradable</code></li>';
+  } else if (os.includes('mac')) {
+    guidance += '<li>Run: <code>softwareupdate -l</code> to list available updates</li>';
+  }
+
+  if (sev === 'critical') {
+    guidance += '<li><strong style="color:var(--critical)">⚠️ CRITICAL:</strong> Prioritize immediate patching, consider temporary mitigations</li>';
+  }
+
+  guidance += '<li>Document all changes and test in staging first</li>';
+  guidance += '</ul>';
+  return guidance;
+}
+
 // Init — check hash first for deep links
 function handleHash(){
   const hash=location.hash.replace(/^#\/?/,'').split('/');
