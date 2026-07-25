@@ -467,6 +467,133 @@ tr:hover td{background:var(--bg-hover)}
   gap: 8px;
 }
 
+/* ── Ring-Based Rollout ─────────────────────────────────── */
+.ring-progress {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 12px 0;
+  position: relative;
+  width: 100%;
+}
+.ring-step {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  position: relative;
+  text-align: center;
+  white-space: nowrap;
+  transition: all 0.3s;
+}
+.ring-connector {
+  width: 24px;
+  height: 2px;
+  background: var(--border);
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+.ring-step.pilot { background: var(--bg-hover); color: var(--text-muted); }
+.ring-step.broad { background: var(--bg-hover); color: var(--text-muted); }
+.ring-step.full  { background: var(--bg-hover); color: var(--text-muted); }
+.ring-step.ring-active { background: var(--accent-glow); color: var(--accent); font-weight: 700; }
+.ring-step.ring-complete { background: #102020; color: var(--installed); }
+.ring-step.ring-blocked { background: var(--critical-bg); color: var(--critical); }
+.ring-connector.ring-active { background: var(--accent); }
+.ring-connector.ring-complete { background: var(--installed); }
+.ring-connector.ring-blocked { background: var(--critical); }
+.ring-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.ring-badge.ring-pilot  { background: var(--installed-bg); color: var(--installed); }
+.ring-badge.ring-broad  { background: rgba(0,170,204,0.15); color: #00aacc; }
+.ring-badge.ring-full   { background: var(--accent-glow); color: var(--accent); }
+.ring-badge.ring-blocked { background: var(--critical-bg); color: var(--critical); }
+.ring-config-panel {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin: 8px 0;
+}
+.ring-config-panel .rc-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+.ring-config-panel .rc-row label {
+  min-width: 100px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.ring-config-panel input {
+  background: var(--bg-root);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  width: 200px;
+}
+.ring-config-panel input:focus { outline: none; border-color: var(--accent); }
+.ring-promote-btn {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+}
+.ring-promote-btn:hover { background: var(--accent-dim); }
+.ring-promote-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.ring-auto-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.ring-auto-toggle input[type="checkbox"] { accent-color: var(--accent); }
+.ring-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 8px 0;
+}
+.ring-stat {
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .15s;
+  border: 1px solid transparent;
+}
+.ring-stat:hover { border-color: var(--accent); }
+.ring-stat .rs-val { font-size: 20px; font-weight: 700; }
+.ring-stat .rs-lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; }
+.ring-stat-pilot  .rs-val { color: var(--installed); }
+.ring-stat-broad  .rs-val { color: #00aacc; }
+.ring-stat-full   .rs-val { color: var(--accent); }
+.ring-stat-blocked .rs-val { color: var(--critical); }
+
 @media(max-width:768px){
   .sidebar{position:fixed;left:-240px;transition:left .2s;height:100vh;z-index:100}
   .sidebar.open{left:0}
@@ -558,7 +685,9 @@ const KEYS = {
   IMPORTED_FINDINGS:      'security-tools:imported-findings',
   LAST_IMPORT:            'security-tools:remflow-last-import',
   VALIDATED_REMEDIATIONS: 'security-tools:validated-remediations',
-  REMEDIATION_QUEUE:      'security-tools:remediation-queue'
+  REMEDIATION_QUEUE:      'security-tools:remediation-queue',
+  RING_CONFIG:            'remflow-ring-config',
+  RING_REMEDIATIONS:      'remflow-ring-remediations'
 };
 
 // ════ Contract Version Check ─────────────────────────────────(function(){  var CV = KEYS.CONTRACT_VERSION;  var VER = '1.0.0';  try {    var stored = localStorage.getItem(CV);    if (!stored) { localStorage.setItem(CV, VER); return; }    if (stored !== VER) {      var b = document.createElement('div');      b.style.cssText = 'background:#352215;color:#ff7722;padding:8px 16px;text-align:center;font-size:12px;font-family:monospace;cursor:pointer;z-index:99999;position:relative';      b.textContent = '⚠ Contract v' + VER + ' ≠ stored v' + stored + '. Some features may not work. Click to dismiss.';      b.onclick = function(){ b.remove(); localStorage.setItem(CV, VER); };      document.body.insertBefore(b, document.body.firstChild);    }  } catch(e) {}})();
@@ -652,6 +781,27 @@ for(let r=0;r<24;r++){
     rollbackUnavailableReason: null
   });
 }
+
+// ── Demo ring assignments for initial remediations ──────────────
+(function() {
+  const assignments = getRingAssignments();
+  // Assign varied rings to existing remediations for demonstration
+  remediations.forEach(function(r, i) {
+    if (assignments[r.id]) return; // already assigned
+    if (i < 3) {
+      assignments[r.id] = { ring: 'full', blocked: false, autoPromote: false, promotedAt: ago(randInt(24,168)) };
+    } else if (i < 6) {
+      assignments[r.id] = { ring: 'broad', blocked: false, autoPromote: (i===5), promotedAt: ago(randInt(12,48)) };
+    } else if (i < 10) {
+      assignments[r.id] = { ring: 'pilot', blocked: false, autoPromote: (i===8||i===9) };
+    } else if (i < 12) {
+      assignments[r.id] = { ring: 'pilot', blocked: true, blockedReason: 'Success rate 67% below threshold 95%', blockedAt: ago(randInt(1,12)) };
+    } else {
+      assignments[r.id] = { ring: 'pilot', blocked: false, autoPromote: false };
+    }
+  });
+  saveRingAssignments(assignments);
+})();
 
 const deployments = [];
 for(let d=0;d<20;d++){
@@ -820,6 +970,8 @@ function navigateTo(page, param){
 
 // ── Dashboard ──────────────────────────────────────────────────
 async function renderDashboard(){
+  // Auto-check ring promotions
+  autoCheckPromotions();
   let allF, assetsList, deploymentsList, remediationsList;
 
   if (API_MODE === "api") {
@@ -955,6 +1107,40 @@ function renderDashboardHTML(dash){
 
   html += bannerHTML;
   html += pipelineHTML;
+
+  // Ring-based rollout summary
+  const ringStats = getRingStats();
+  const blockedRems = getBlockedRemediations();
+  html += `<div class="card" style="margin-bottom:16px;border-left:3px solid var(--accent)">
+    <div class="card-title" style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <span>🎯 Ring-Based Rollout Status</span>
+      <span style="font-size:11px;margin-left:auto"><a href="javascript:navigateTo('remediations')" style="color:var(--accent);text-decoration:none">View All Remediations →</a></span>
+    </div>
+    <div class="ring-stats-grid">
+      <div class="ring-stat ring-stat-pilot" onclick="navigateTo('remediations')">
+        <div class="rs-val">${ringStats.pilot}</div>
+        <div class="rs-lbl">Pilot Ring</div>
+      </div>
+      <div class="ring-stat ring-stat-broad" onclick="navigateTo('remediations')">
+        <div class="rs-val">${ringStats.broad}</div>
+        <div class="rs-lbl">Broad Ring</div>
+      </div>
+      <div class="ring-stat ring-stat-full" onclick="navigateTo('remediations')">
+        <div class="rs-val">${ringStats.full}</div>
+        <div class="rs-lbl">Full Deploy</div>
+      </div>
+      <div class="ring-stat ring-stat-blocked" onclick="navigateTo('remediations')">
+        <div class="rs-val">${ringStats.blocked}</div>
+        <div class="rs-lbl">Blocked</div>
+      </div>
+    </div>`;
+  if (blockedRems.length > 0) {
+    html += `<div style="margin-top:8px;padding:8px 12px;background:var(--critical-bg);border:1px solid var(--critical);border-radius:var(--radius-sm);font-size:12px">
+      <strong style="color:var(--critical)">🛑 ${blockedRems.length} blocked:</strong>
+      ${blockedRems.map(function(b){ return '<span style="font-family:var(--font-mono);color:var(--critical)">'+b.id+'</span>'+ (b.blockedReason ? ' <span style="color:var(--text-muted)">('+b.blockedReason.substring(0,40)+')</span>' : ''); }).join(' | ')}
+    </div>`;
+  }
+  html += `</div>`;
   html+=`<div class="grid-2">
 <div class="card">
 <div class="card-title">Severity Distribution</div>
@@ -1120,7 +1306,7 @@ function renderRemediations(){
   <button class="btn btn-sm" onclick="exportRemCSV()">📥 Export CSV</button>
 </div>
 <div style="overflow-x:auto;margin-top:12px"><table id="rem-table">
-<tr><th>ID</th><th>CVE</th><th>Package</th><th>Targets</th><th>Coverage</th><th>Deployment</th><th>Created</th><th>Status</th><th></th></tr>
+<tr><th>ID</th><th>CVE</th><th>Package</th><th>Targets</th><th>Ring</th><th>Coverage</th><th>Deployment</th><th>Created</th><th>Status</th><th></th></tr>
 <tbody id="rem-tbody"></tbody></table></div>`;
   document.getElementById('page-remediations').innerHTML=html;
   renderRemTable();
@@ -1175,11 +1361,12 @@ function renderRemTable(){
       ? `<span style="font-size:12px;color:${covColor};font-weight:600">${deployCoverage}%</span>`
       : `<span style="font-size:11px;color:var(--text-muted)">—</span>`;
 
-    return `<tr class="clickable" ondblclick="viewRemediation('${r.id}')">
-      <td class="mono text-link" onclick="viewRemediation('${r.id}')">${r.id}</td>
+    return `<tr class="clickable" onclick="viewRemediation('${r.id}')">
+      <td class="mono text-link">${r.id}</td>
       <td class="mono">${r.cve}${r.fromShieldView?' <span style="font-size:10px;color:var(--accent)">🔗SV</span>':''}</td>
       <td>${r.kb||'—'}</td>
       <td>${r.targetCount}</td>
+      <td>${(()=>{ const ri = getRingInfo(r.id); return renderRingBadge(ri.ring, ri.blocked); })()}</td>
       <td>${depCovHTML}</td>
       <td>${depBar}</td>
       <td style="font-size:12px;color:var(--text-muted)">${r.created}</td>
@@ -1187,7 +1374,7 @@ function renderRemTable(){
       <td><button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();pushToTheValidator('${r.cve}')" title="Push to TheValidator">📤</button></td>
     </tr>`;
   }).join('');
-  document.getElementById('rem-tbody').innerHTML=rows||'<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">No remediations match</td></tr>';
+  document.getElementById('rem-tbody').innerHTML=rows||'<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text-muted)">No remediations match</td></tr>';
 }
 
 // Calculate deployment status for a remediation based on its targets
@@ -1237,6 +1424,32 @@ function viewRemediation(id){
   <div><span style="color:var(--text-muted);font-size:12px">Coverage</span><br>${r.coverage}%</div>
   <div><span style="color:var(--text-muted);font-size:12px">Created</span><br>${r.created}</div>
   <div><span style="color:var(--text-muted);font-size:12px">Completed</span><br>${r.completed}</div>
+</div>
+<div class="card" style="margin-bottom:12px;border-left:3px solid var(--accent)">
+  <div class="card-title" style="display:flex;align-items:center;gap:8px">🎯 Ring-Based Rollout</div>
+  ${(()=>{
+    const ringInfo = getRingInfo(r.id, r.targets);
+    const check = canPromoteRing(r.id, r.targets);
+    const isBlocked = ringInfo.blocked;
+    const autoPromote = ringInfo.autoPromote || false;
+    let ringHTML = renderRingProgressBar(r.id, ringInfo);
+    ringHTML += '<div style="display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap">';
+    if (!isBlocked && ringInfo.ring !== 'full') {
+      ringHTML += '<button class="ring-promote-btn" id="promoteBtn-' + r.id + '" onclick="if(promoteRing(\'' + r.id + '\')){viewRemediation(\'' + r.id + '\')}" ' + (check.can ? '' : 'title="' + escHtml(check.reason) + '"') + '>' + (check.can ? '▶ Promote to ' + (check.nextRing ? check.nextRing.toUpperCase() : 'NEXT') : '⏳ Promote (' + escHtml(check.reason).substring(0,30) + '...)') + '</button>';
+    }
+    if (isBlocked) {
+      ringHTML += '<button class="btn btn-sm" onclick="unblockRemediation(\'' + r.id + '\');viewRemediation(\'' + r.id + '\')" style="background:var(--critical-bg);border-color:var(--critical);color:var(--critical)">🔓 Unblock</button>';
+      if (ringInfo.blockedReason) {
+        ringHTML += '<span style="font-size:11px;color:var(--critical)">Reason: ' + escHtml(ringInfo.blockedReason) + '</span>';
+      }
+    }
+    ringHTML += '<label class="ring-auto-toggle"><input type="checkbox" ' + (autoPromote ? 'checked' : '') + ' onchange="toggleAutoPromote(\'' + r.id + '\',this.checked);viewRemediation(\'' + r.id + '\')"> Auto-promote</label>';
+    if (check.stats) {
+      ringHTML += '<span style="font-size:11px;color:var(--text-muted);margin-left:auto">Deployed: ' + check.stats.deployed + ' | Verified: ' + check.stats.verified + ' | Rate: ' + check.stats.successRate + '%</span>';
+    }
+    ringHTML += '</div>';
+    return ringHTML;
+  })()}
 </div>
 <div class="card" style="margin-bottom:12px">
   <div class="card-title">Deployment Status</div>
@@ -2335,7 +2548,326 @@ function showToast(msg){
   setTimeout(()=>t.remove(),2500);
 }
 
-// Cross-tool localStorage bridge
+// ════ Ring-Based Rollout System ════════════════════════════════
+// Default ring configuration — stored in localStorage
+function getRingConfig() {
+  try {
+    const stored = localStorage.getItem(KEYS.RING_CONFIG);
+    if (stored) return JSON.parse(stored);
+  } catch(e) {}
+  // Default: tag-based mapping + hostname pattern fallback
+  return {
+    tagMap: { 'dev': 'pilot', 'staging': 'broad', 'test': 'broad', 'prod': 'full' },
+    hostPatterns: { 'pilot': '*-DEV-*', 'broad': '*-STG-*|*-TEST-*', 'full': '*-PROD-*' },
+    successThreshold: 95,
+    minAssetsPerRing: 5,
+    defaultRing: 'pilot'
+  };
+}
+
+function saveRingConfig(cfg) {
+  localStorage.setItem(KEYS.RING_CONFIG, JSON.stringify(cfg));
+}
+
+// Get ring assignments for remediations from localStorage
+function getRingAssignments() {
+  try { return JSON.parse(localStorage.getItem(KEYS.RING_REMEDIATIONS) || '{}'); }
+  catch(e) { return {}; }
+}
+
+function saveRingAssignments(assignments) {
+  localStorage.setItem(KEYS.RING_REMEDIATIONS, JSON.stringify(assignments));
+}
+
+// Determine ring for a hostname
+function ringFromHostname(hostname, cfg) {
+  if (!cfg) cfg = getRingConfig();
+  const h = (hostname || '').toUpperCase();
+  // Check hostname patterns
+  const patterns = cfg.hostPatterns || {};
+  const patternKeys = Object.keys(patterns);
+  for (let i = 0; i < patternKeys.length; i++) {
+    const ring = patternKeys[i];
+    const pat = patterns[ring];
+    if (!pat) continue;
+    const parts = pat.split('|');
+    for (let j = 0; j < parts.length; j++) {
+      const re = new RegExp('^' + parts[j].replace(/\*/g, '.*') + '$', 'i');
+      if (re.test(h)) return ring;
+    }
+  }
+  // Fallback: check env tag in hostname
+  const tagMap = cfg.tagMap || {};
+  const tagKeys = Object.keys(tagMap);
+  for (let k = 0; k < tagKeys.length; k++) {
+    if (h.indexOf(tagKeys[k].toUpperCase()) >= 0) return tagMap[tagKeys[k]];
+  }
+  return cfg.defaultRing || 'pilot';
+}
+
+// Determine overall ring for a remediation based on its targets
+function getRemediationRing(remId, targets, cfg) {
+  const assignments = getRingAssignments();
+  if (assignments[remId] && assignments[remId].ring) return assignments[remId];
+  if (!cfg) cfg = getRingConfig();
+  // All remediations start in pilot
+  return { ring: 'pilot', blocked: false, autoPromote: false };
+}
+
+// Get remediation ring info (ensures stored or computed)
+function getRingInfo(remId, targets) {
+  const assignments = getRingAssignments();
+  if (assignments[remId]) return assignments[remId];
+  const info = { ring: 'pilot', blocked: false, autoPromote: false };
+  assignments[remId] = info;
+  saveRingAssignments(assignments);
+  return info;
+}
+
+// Check if a remediation can be promoted to the next ring
+function canPromoteRing(remId, targets) {
+  const ringInfo = getRingInfo(remId, targets);
+  if (ringInfo.blocked) return { can: false, reason: 'Blocked — failure rate too high' };
+  const currentRing = ringInfo.ring;
+  const rings = ['pilot', 'broad', 'full'];
+  const ringIdx = rings.indexOf(currentRing);
+  if (ringIdx >= rings.length - 1) return { can: false, reason: 'Already at full deployment' };
+  if (ringIdx < 0) return { can: false, reason: 'Unknown ring' };
+
+  const cfg = getRingConfig();
+  const threshold = cfg.successThreshold || 95;
+  const minAssets = cfg.minAssetsPerRing || 5;
+
+  // Check minimum assets in current ring
+  if (targets && targets.length < minAssets) {
+    return { can: false, reason: 'Need at least ' + minAssets + ' assets in current ring (currently ' + targets.length + ')' };
+  }
+
+  // Check TheValidator verified count
+  let queue = [];
+  try { queue = JSON.parse(localStorage.getItem(KEYS.REMEDIATION_QUEUE) || '[]'); } catch(e) {}
+  let validated = [];
+  try { validated = JSON.parse(localStorage.getItem(KEYS.VALIDATED_REMEDIATIONS) || '[]'); } catch(e) {}
+
+  // Get deployment lookup for this rem
+  const depLookup = buildDeploymentLookup();
+  const rem = (window.__allRems || remediations).find(function(r) { return r.id === remId; });
+  const stats = rem ? getRemediationDeployStats(rem, depLookup) : { installed: 0, pending: 0, failed: 0 };
+  const deployed = stats.installed;
+  let verified = 0;
+  // Count validated items from TheValidator that match CVE of this rem
+  if (rem) {
+    validated.forEach(function(v) {
+      if (v.cve === rem.cve) verified++;
+    });
+  }
+  queue.forEach(function(q) {
+    if (rem && q.cve === rem.cve && (q.status === 'deployed' || q.status === 'validated')) verified++;
+  });
+
+  const totalAssessed = deployed > 0 ? deployed : (targets ? targets.length : 1);
+  const successRate = totalAssessed > 0 ? Math.round((verified / totalAssessed) * 100) : 0;
+  if (deployed > 0 && verified < deployed * (threshold / 100)) {
+    return { can: false, reason: 'Success rate ' + successRate + '% below threshold ' + threshold + '%', stats: { deployed, verified, successRate, threshold } };
+  }
+
+  return {
+    can: true,
+    reason: 'Ready for ' + rings[ringIdx + 1],
+    nextRing: rings[ringIdx + 1],
+    stats: { deployed, verified, successRate, threshold }
+  };
+}
+
+// Promote a remediation to the next ring
+function promoteRing(remId) {
+  const check = canPromoteRing(remId);
+  if (!check.can) {
+    showToast('⚠️ Cannot promote: ' + check.reason);
+    return false;
+  }
+  const assignments = getRingAssignments();
+  const info = assignments[remId] || { ring: 'pilot', blocked: false, autoPromote: false };
+  info.ring = check.nextRing;
+  info.promotedAt = new Date().toISOString();
+  assignments[remId] = info;
+  saveRingAssignments(assignments);
+
+  // Update in-memory remediation
+  const allRems = window.__allRems || remediations;
+  const rem = allRems.find(function(r) { return r.id === remId; });
+  if (rem) rem.ring = info.ring;
+
+  showToast('✅ Promoted ' + remId + ' to ' + check.nextRing.toUpperCase() + ' ring');
+  return true;
+}
+
+// Block a remediation
+function blockRemediation(remId, reason) {
+  const assignments = getRingAssignments();
+  const info = assignments[remId] || { ring: 'pilot', blocked: false, autoPromote: false };
+  info.blocked = true;
+  info.blockedReason = reason || 'Failure rate exceeded threshold';
+  info.blockedAt = new Date().toISOString();
+  assignments[remId] = info;
+  saveRingAssignments(assignments);
+
+  const allRems = window.__allRems || remediations;
+  const rem = allRems.find(function(r) { return r.id === remId; });
+  if (rem) rem.blocked = true;
+
+  showToast('🛑 ' + remId + ' BLOCKED: ' + (reason || 'Failure rate exceeded threshold'));
+}
+
+// Unblock a remediation
+function unblockRemediation(remId) {
+  const assignments = getRingAssignments();
+  const info = assignments[remId];
+  if (!info) return;
+  info.blocked = false;
+  info.blockedReason = null;
+  assignments[remId] = info;
+  saveRingAssignments(assignments);
+
+  const allRems = window.__allRems || remediations;
+  const rem = allRems.find(function(r) { return r.id === remId; });
+  if (rem) { rem.blocked = false; rem.blockedReason = null; }
+  showToast('✅ ' + remId + ' unblocked');
+}
+
+// Toggle auto-promote
+function toggleAutoPromote(remId, enabled) {
+  const assignments = getRingAssignments();
+  const info = assignments[remId] || { ring: 'pilot', blocked: false, autoPromote: false };
+  info.autoPromote = enabled;
+  assignments[remId] = info;
+  saveRingAssignments(assignments);
+}
+
+// Get ring statistics for dashboard
+function getRingStats() {
+  const allRems = window.__allRems || remediations;
+  const assignments = getRingAssignments();
+  const stats = { pilot: 0, broad: 0, full: 0, blocked: 0, total: allRems.length };
+  allRems.forEach(function(r) {
+    const info = assignments[r.id] || { ring: 'pilot', blocked: false };
+    if (info.blocked) stats.blocked++;
+    else stats[info.ring] = (stats[info.ring] || 0) + 1;
+  });
+  return stats;
+}
+
+// Render ring progress bar
+function renderRingProgressBar(remId, ringInfo) {
+  if (!ringInfo) ringInfo = getRingInfo(remId);
+  const rings = ['pilot', 'broad', 'full'];
+  const currentRing = ringInfo.ring || 'pilot';
+  const isBlocked = ringInfo.blocked;
+  let ringIdx = rings.indexOf(currentRing);
+  if (ringIdx < 0) ringIdx = 0;
+
+  let html = '<div class="ring-progress">';
+  for (let i = 0; i < rings.length; i++) {
+    const ring = rings[i];
+    let cls = ring;
+    let label = ring.toUpperCase();
+    if (isBlocked && i >= ringIdx) {
+      cls += ' ring-blocked';
+      label = i === ringIdx ? 'BLOCKED' : ring.toUpperCase();
+    } else if (i < ringIdx) {
+      cls += ' ring-complete';
+      label = '✓';
+    } else if (i === ringIdx && !isBlocked) {
+      cls += ' ring-active';
+    }
+    html += '<div class="ring-step ' + cls + '">' + label + '</div>';
+    if (i < rings.length - 1) {
+      let connCls = 'ring-connector';
+      if (isBlocked && i >= ringIdx) connCls += ' ring-blocked';
+      else if (i < ringIdx) connCls += ' ring-complete';
+      else if (i === ringIdx && !isBlocked) connCls += ' ring-active';
+      html += '<div class="' + connCls + '"></div>';
+    }
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderRingBadge(ring, blocked) {
+  if (blocked) return '<span class="ring-badge ring-blocked">BLOCKED</span>';
+  const r = ring || 'pilot';
+  return '<span class="ring-badge ring-' + r + '">' + r.toUpperCase() + '</span>';
+}
+
+// Auto-check and promote remediations
+function autoCheckPromotions() {
+  const allRems = window.__allRems || remediations;
+  const assignments = getRingAssignments();
+  let promoted = 0, blocked = 0;
+  const cfg = getRingConfig();
+  allRems.forEach(function(r) {
+    const info = assignments[r.id] || { ring: 'pilot', blocked: false, autoPromote: false };
+    if (info.blocked || info.ring === 'full') return;
+    const check = canPromoteRing(r.id, r.targets);
+    if (info.autoPromote && check.can) {
+      if (promoteRing(r.id)) promoted++;
+    } else if (check.stats && check.stats.deployed > 0 && check.stats.successRate < (cfg.successThreshold || 95)) {
+      if (!info.blocked) {
+        blockRemediation(r.id, 'Success rate ' + check.stats.successRate + '% below threshold ' + (cfg.successThreshold || 95) + '%');
+        blocked++;
+      }
+    }
+  });
+}
+
+// Get list of blocked remediations for dashboard
+function getBlockedRemediations() {
+  const allRems = window.__allRems || remediations;
+  const assignments = getRingAssignments();
+  const blocked = [];
+  Object.keys(assignments).forEach(function(remId) {
+    if (assignments[remId].blocked) {
+      const rem = allRems.find(function(r) { return r.id === remId; });
+      blocked.push({
+        id: remId,
+        cve: rem ? rem.cve : '',
+        name: rem ? rem.name : '',
+        blockedReason: assignments[remId].blockedReason || '',
+        blockedAt: assignments[remId].blockedAt || ''
+      });
+    }
+  });
+  return blocked;
+}
+
+// Render ring config panel for settings page or remediation detail
+function renderRingConfigPanel() {
+  const cfg = getRingConfig();
+  let html = '<div class="ring-config-panel"><div style="font-weight:600;margin-bottom:8px;color:var(--text-primary)">🎯 Ring Configuration</div>';
+  html += '<div class="rc-row"><label>Success Threshold:</label><input type="number" value="' + (cfg.successThreshold || 95) + '" min="50" max="100" onchange="updateRingConfig(\'successThreshold\',' + 'parseInt(this.value))" style="width:80px"> %</div>';
+  html += '<div class="rc-row"><label>Min Assets/Ring:</label><input type="number" value="' + (cfg.minAssetsPerRing || 5) + '" min="1" max="100" onchange="updateRingConfig(\'minAssetsPerRing\',' + 'parseInt(this.value))" style="width:80px"></div>';
+  html += '<div class="rc-row"><label>Pilot Pattern:</label><input type="text" value="' + escHtml(cfg.hostPatterns ? cfg.hostPatterns.pilot || '*-DEV-*' : '*-DEV-*') + '" onchange="updateRingPattern(\'pilot\',this.value)"></div>';
+  html += '<div class="rc-row"><label>Broad Pattern:</label><input type="text" value="' + escHtml(cfg.hostPatterns ? cfg.hostPatterns.broad || '*-STG-*|*-TEST-*' : '*-STG-*|*-TEST-*') + '" onchange="updateRingPattern(\'broad\',this.value)"></div>';
+  html += '<div class="rc-row"><label>Full Pattern:</label><input type="text" value="' + escHtml(cfg.hostPatterns ? cfg.hostPatterns.full || '*-PROD-*' : '*-PROD-*') + '" onchange="updateRingPattern(\'full\',this.value)"></div>';
+  html += '</div>';
+  return html;
+}
+
+function updateRingConfig(key, val) {
+  const cfg = getRingConfig();
+  cfg[key] = val;
+  saveRingConfig(cfg);
+  showToast('Ring config updated: ' + key + ' = ' + val);
+}
+function updateRingPattern(ring, val) {
+  const cfg = getRingConfig();
+  if (!cfg.hostPatterns) cfg.hostPatterns = {};
+  cfg.hostPatterns[ring] = val;
+  saveRingConfig(cfg);
+  showToast('Ring pattern updated: ' + ring + ' = ' + val);
+}
+
+// ── Cross-tool localStorage bridge ─────────────────────────────
 function checkCrossToolQueue() {
   try { return JSON.parse(localStorage.getItem(KEYS.REMEDIATION_QUEUE) || '[]').filter(i => i.status === 'pending'); }
   catch(e) { return []; }
