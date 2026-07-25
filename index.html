@@ -33,6 +33,7 @@
   --text-primary: #0c1225; --text-secondary: #556888; --text-muted: #8899bb;
   --accent: #0052cc; --accent-dim: #003d99;
   --critical-bg: #fff0f0; --high-bg: #fff4ee; --medium-bg: #fffbe6; --low-bg: #eefff4;
+  --rollback-bg: #fff0f0; --rollback-border: #e8cccc;
   --installed-bg: #eefff4; --pending-bg: #fff4ee; --failed-bg: #fff0f0;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -244,6 +245,48 @@ tr:hover td{background:var(--bg-hover)}
   user-select: none;
 }
 .ps-code-block.collapsed pre { display: none; }
+/* ── Rollback Code Block ───────────────────────────────── */
+.ps-code-block.rollback {
+  background: #0d0808;
+  border-color: #552222;
+}
+.ps-code-block.rollback .ps-header {
+  background: #1a1010;
+  border-bottom-color: #552222;
+}
+.ps-code-block.rollback .ps-header .ps-label {
+  color: #ff6666;
+}
+.ps-code-block.rollback pre {
+  color: #d4a0a0;
+}
+.ps-code-block.rollback .ps-header .copy-btn {
+  background: #1a1010;
+  border-color: #552222;
+}
+.ps-code-block.rollback .ps-header .copy-btn:hover {
+  background: #552222;
+  border-color: #772222;
+}
+.ps-code-block.rollback .copy-btn.copied {
+  background: #223322;
+  border-color: var(--low);
+  color: var(--low);
+}
+.rollback-unavailable {
+  background: #1a1010;
+  border: 1px solid #552222;
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin: 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #cc8888;
+}
+.rollback-unavailable .ru-icon { font-size: 20px; }
+.rollback-unavailable .ru-reason { color: #995555; font-size: 12px; }
 .kb-badge {
   display: inline-block;
   background: var(--accent-glow);
@@ -599,10 +642,14 @@ for(let r=0;r<24;r++){
   const status=pick(REM_STS);
   const created=ago(randInt(72,720));
   const completed=status==='Completed'?ago(randInt(0,48)):'-';
+  const sampleOS = pick(OSES);
+  const kb = KBS[cve] || ('SEC-' + cve.replace('CVE-',''));
   remediations.push({
-    id:'RM-'+(1000+r), cve, name:CVE_NAMES[cve], kb:KBS[cve],
+    id:'RM-'+(1000+r), cve, name:CVE_NAMES[cve], kb,
     targets:uni, targetCount:uni.length, status, created, completed,
-    coverage:status==='Completed'?Math.round(90+Math.random()*10):status==='Failed'?Math.round(20+Math.random()*30):Math.round(40+Math.random()*50)
+    coverage:status==='Completed'?Math.round(90+Math.random()*10):status==='Failed'?Math.round(20+Math.random()*30):Math.round(40+Math.random()*50),
+    rollbackCommand: 'wusa /uninstall /kb:' + (kb||'').replace(/^KB/i,'').replace(/^SEC-\d{4}-/,'') + ' /quiet',
+    rollbackUnavailableReason: null
   });
 }
 
@@ -723,18 +770,21 @@ function autoCreateShieldViewRemediations() {
     const exists = remediations.find(r => r.cve === c.cve);
     if (exists) return;
     const created = ago(randInt(0, 4));
+    const svKb = KBS[c.cve] || ('SV-' + c.cve.replace('CVE-', ''));
     autoRems.push({
       id: 'RM-SV-' + (1000 + autoRems.length),
       cve: c.cve,
       name: c.name || CVE_NAMES[c.cve] || c.cve,
-      kb: KBS[c.cve] || 'SV-' + c.cve.replace('CVE-', ''),
+      kb: svKb,
       targets: c.assets.length > 0 ? c.assets : HOSTS.slice(0, Math.min(c.assetCount || 3, HOSTS.length)),
       targetCount: c.assetCount || c.assets.length || Math.min(3, HOSTS.length),
       status: 'Queued',
       created,
       completed: '-',
       coverage: 0,
-      fromShieldView: true
+      fromShieldView: true,
+      rollbackCommand: 'wusa /uninstall /kb:' + svKb.replace(/^KB/i,'').replace(/^SEC-\d{4}-/,'').replace(/^SV-/,'') + ' /quiet',
+      rollbackUnavailableReason: null
     });
   });
   return autoRems;
@@ -1242,6 +1292,15 @@ function viewRemediation(id){
     kbList.forEach(kb => {
       const psBlocks = generatePSCommands(kb, { os: sampleOS, version: kb, app: r.name || '' });
       html += renderPSCommands(psBlocks, 'rem-' + r.id + '-' + kb.replace(/[^a-zA-Z0-9]/g, ''));
+
+      // Generate rollback commands
+      const rbBlocks = generateRollback(kb, { os: sampleOS, version: kb, app: r.name || '' });
+      const rbReason = getRollbackUnavailableReason(kb, { os: sampleOS, version: kb, app: r.name || '' });
+      if (rbReason) {
+        html += renderRollbackUnavailable(rbReason, 'rb-' + r.id + '-' + kb.replace(/[^a-zA-Z0-9]/g, ''));
+      } else {
+        html += renderRollbackCommands(rbBlocks, 'rb-' + r.id + '-' + kb.replace(/[^a-zA-Z0-9]/g, ''));
+      }
     });
     html += `</div>`;
   }
@@ -1896,7 +1955,9 @@ function pushToTheValidator(cveId) {
       status: 'pending',
       source: 'RemFlow',
       queuedAt: new Date().toISOString(),
-      coverage: rem ? rem.coverage : 0
+      coverage: rem ? rem.coverage : 0,
+      rollbackCommand: rem ? (rem.rollbackCommand || null) : null,
+      rollbackUnavailableReason: rem ? (rem.rollbackUnavailableReason || null) : null
     });
     localStorage.setItem(KEYS.REMEDIATION_QUEUE, JSON.stringify(queue));
     showToast(`📤 ${cveId} pushed to TheValidator validation queue`);
@@ -1921,7 +1982,9 @@ function pushAllToTheValidator() {
           status: 'pending',
           source: 'RemFlow',
           queuedAt: new Date().toISOString(),
-          coverage: r.coverage || 0
+          coverage: r.coverage || 0,
+          rollbackCommand: r.rollbackCommand || null,
+          rollbackUnavailableReason: r.rollbackUnavailableReason || null
         });
         localStorage.setItem(KEYS.REMEDIATION_QUEUE, JSON.stringify(queue));
         count++;
@@ -2452,6 +2515,71 @@ sw_vers`
   return blocks;
 }
 
+// ── Rollback Command Generation ────────────────────────────
+function generateRollback(kbId, context) {
+  const os = detectOS(context.os || '');
+  const kb = kbId.toUpperCase().replace(/^KB/i, 'KB');
+  const kbNum = kb.replace('KB', '');
+
+  const blocks = [];
+
+  if (os === 'windows' || os === 'windows-server') {
+    // KB uninstall
+    blocks.push({
+      label: `🗑️ Uninstall ${kb}`,
+      platform: 'PowerShell (Windows)',
+      code: `# Rollback: Uninstall ${kb}\nwusa /uninstall /kb:${kbNum} /quiet /norestart\n\n# Verify uninstall\nStart-Sleep -Seconds 10\n$installed = Get-HotFix -Id ${kb} -ErrorAction SilentlyContinue\nif ($installed) {\n    Write-Host "⚠️ ${kb} still installed — manual removal may be needed" -ForegroundColor Yellow\n} else {\n    Write-Host "✅ ${kb} successfully removed" -ForegroundColor Green\n}\n\n# Check pending reboot\nif (Get-ItemProperty "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager" -Name PendingFileRenameOperations -ErrorAction SilentlyContinue) {\n    Write-Host "⚠️ Pending reboot required to complete rollback" -ForegroundColor Yellow\n}\n\n# If uninstall fails, try DISM\n# dism /online /remove-package /packagename:"Package_for_${kb}~..."`
+    });
+
+    // Registry backup restore (for config changes)
+    blocks.push({
+      label: '🔄 Restore Registry Backup',
+      platform: 'PowerShell (Windows)',
+      code: `# Restore registry backup created before remediation\n$backupPath = "$env:TEMP\\remflow_registry_backup_${kbNum}.reg"\n\nif (Test-Path $backupPath) {\n    Write-Host "Restoring registry backup from: $backupPath" -ForegroundColor Cyan\n    reg import "$backupPath"\n    if ($LASTEXITCODE -eq 0) {\n        Write-Host "✅ Registry restored successfully" -ForegroundColor Green\n    } else {\n        Write-Host "❌ Registry restore failed — check backup file integrity" -ForegroundColor Red\n    }\n} else {\n    Write-Host "⚠️ No registry backup found at $backupPath" -ForegroundColor Yellow\n    Write-Host "Manual rollback may be required — check documentation for ${kb}" -ForegroundColor Yellow\n}`
+    });
+
+    // Service state reversal
+    blocks.push({
+      label: '⚙️ Reverse Service State Changes',
+      platform: 'PowerShell (Windows)',
+      code: `# If remediation changed service state, reverse it\n# Check common services affected by security patches\n$services = @('wuauserv', 'bits', 'cryptsvc', 'TrustedInstaller')\n\nforeach ($svc in $services) {\n    $s = Get-Service -Name $svc -ErrorAction SilentlyContinue\n    if ($s) {\n        Write-Host "$($s.Name): $($s.Status) - StartType: $($s.StartType)\"\n    }\n}\n\n# To re-enable a stopped service:\n# Set-Service -Name "servicename" -StartupType Automatic\n# Start-Service -Name "servicename"\n\n# To re-disable a started service:\n# Stop-Service -Name "servicename" -Force\n# Set-Service -Name "servicename" -StartupType Disabled`
+    });
+
+  } else if (os === 'linux') {
+    blocks.push({
+      label: '🔄 Rollback Package Update (Linux)',
+      platform: 'Bash (Linux)',
+      code: `# Rollback package to previous version\n# For RHEL/CentOS — downgrade:\n# sudo yum downgrade <package-name>-<old-version>\n\n# For Ubuntu/Debian — pin and downgrade:\n# apt list -a <package-name>\n# sudo apt install <package-name>=<old-version>\n# sudo apt-mark hold <package-name>\n\n# List recent yum transactions for rollback:\n# sudo yum history list\n# sudo yum history undo <transaction-id>\n\n# For full system rollback:\n# sudo yum history undo last`
+    });
+  } else if (os === 'macos') {
+    blocks.push({
+      label: '🔄 Rollback Software Update (macOS)',
+      platform: 'Terminal (macOS)',
+      code: `# macOS doesn't support direct uninstall of system updates.\n# Rollback options:\n# 1. Restore from Time Machine backup\n# 2. Reinstall macOS via Recovery (preserves user data)\n# 3. For App Store apps: delete and reinstall older version\n\n# Check installed update history:\n# softwareupdate --history\n\n# ⚠️ System security updates cannot be individually uninstalled.\n# Consider snapshot-based rollback or full system restore.`
+    });
+  }
+
+  return blocks;
+}
+
+// Determine if rollback is unavailable and return reason
+function getRollbackUnavailableReason(kbId, context) {
+  const os = detectOS(context.os || '');
+  const kb = kbId.toUpperCase().replace(/^KB/i, 'KB');
+
+  if (os === 'macos') {
+    return 'macOS system updates cannot be individually uninstalled. Use Time Machine or Recovery restore.';
+  }
+  if (os === 'linux' && (!kbId || kbId === 'N/A' || kbId.toLowerCase() === 'n/a')) {
+    return 'No specific package identifier found — cannot generate targeted rollback.';
+  }
+  // For Windows: rollback is generally available via wusa
+  if ((os === 'windows' || os === 'windows-server') && (!kbId || kbId.toUpperCase().replace('KB','').length < 5)) {
+    return 'KB identifier is missing or invalid — cannot generate exact rollback command.';
+  }
+  return null; // null means rollback IS available
+}
+
 function renderPSCommands(blocks, blockId) {
   if (!blocks || blocks.length === 0) return '';
   const uid = blockId || ('ps-' + Math.random().toString(36).slice(2,8));
@@ -2467,6 +2595,40 @@ function renderPSCommands(blocks, blockId) {
 
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Rollback Command Rendering ────────────────────────────
+function renderRollbackCommands(blocks, blockId) {
+  if (!blocks || blocks.length === 0) return '';
+  const uid = blockId || ('rb-' + Math.random().toString(36).slice(2,8));
+  var html = '<div style="margin-top:16px;padding-top:12px;border-top:1px dashed var(--border-light)">';
+  html += '<div style="font-weight:600;font-size:14px;color:#ff6666;margin-bottom:8px;display:flex;align-items:center;gap:8px">🔄 Rollback Commands</div>';
+  html += blocks.map(function(b, i) {
+    return `<div class="ps-code-block rollback" id="${uid}-${i}">
+  <div class="ps-header" onclick="togglePSCodeBlock('${uid}-${i}')">
+    <span class="ps-toggle">▾ <span class="ps-label">${escHtml(b.label)}</span> <span style="font-size:10px;color:var(--text-muted)">${escHtml(b.platform)}</span></span>
+    <button class="copy-btn" onclick="event.stopPropagation();copyPSCode('${uid}-${i}')" title="Copy to clipboard">📋 Copy</button>
+  </div>
+  <pre id="${uid}-${i}-code">${escHtml(b.code)}</pre>
+</div>`;
+  }).join('');
+  html += '</div>';
+  return html;
+}
+
+// Render unavailable rollback notice
+function renderRollbackUnavailable(reason, blockId) {
+  const uid = blockId || ('rb-' + Math.random().toString(36).slice(2,8));
+  return `<div style="margin-top:16px;padding-top:12px;border-top:1px dashed var(--border-light)" id="${uid}">
+    <div style="font-weight:600;font-size:14px;color:#ff6666;margin-bottom:8px;display:flex;align-items:center;gap:8px">🔄 Rollback Commands</div>
+    <div class="rollback-unavailable">
+      <span class="ru-icon">⚠️</span>
+      <div>
+        <div style="font-weight:600">⚠ Rollback: unavailable</div>
+        <div class="ru-reason">${escHtml(reason)}</div>
+      </div>
+    </div>
+  </div>`;
 }
 
 function togglePSCodeBlock(id) {
