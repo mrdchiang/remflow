@@ -506,9 +506,21 @@ tr:hover td{background:var(--bg-hover)}
 </div>
 
 <script>
-// ════ Contract Version Check ─────────────────────────────────(function(){  var CV = 'security-tools:contract-version';  var VER = '1.0.0';  try {    var stored = localStorage.getItem(CV);    if (!stored) { localStorage.setItem(CV, VER); return; }    if (stored !== VER) {      var b = document.createElement('div');      b.style.cssText = 'background:#352215;color:#ff7722;padding:8px 16px;text-align:center;font-size:12px;font-family:monospace;cursor:pointer;z-index:99999;position:relative';      b.textContent = '⚠ Contract v' + VER + ' ≠ stored v' + stored + '. Some features may not work. Click to dismiss.';      b.onclick = function(){ b.remove(); localStorage.setItem(CV, VER); };      document.body.insertBefore(b, document.body.firstChild);    }  } catch(e) {}})();
+// ── Storage Keys ──────────────────────────────────────────────────
+const KEYS = {
+  CONTRACT_VERSION:       'security-tools:contract-version',
+  ERROR_LOG:              'security-tools:error-log',
+  THEME:                  'remflow-theme',
+  DEPLOYMENTS:            'security-tools:remflow-deployments',
+  IMPORTED_FINDINGS:      'security-tools:imported-findings',
+  LAST_IMPORT:            'security-tools:remflow-last-import',
+  VALIDATED_REMEDIATIONS: 'security-tools:validated-remediations',
+  REMEDIATION_QUEUE:      'security-tools:remediation-queue'
+};
+
+// ════ Contract Version Check ─────────────────────────────────(function(){  var CV = KEYS.CONTRACT_VERSION;  var VER = '1.0.0';  try {    var stored = localStorage.getItem(CV);    if (!stored) { localStorage.setItem(CV, VER); return; }    if (stored !== VER) {      var b = document.createElement('div');      b.style.cssText = 'background:#352215;color:#ff7722;padding:8px 16px;text-align:center;font-size:12px;font-family:monospace;cursor:pointer;z-index:99999;position:relative';      b.textContent = '⚠ Contract v' + VER + ' ≠ stored v' + stored + '. Some features may not work. Click to dismiss.';      b.onclick = function(){ b.remove(); localStorage.setItem(CV, VER); };      document.body.insertBefore(b, document.body.firstChild);    }  } catch(e) {}})();
 // ════ Error Catcher ──────────────────────────────────────────
-(function(){'use strict';const SK='security-tools:error-log',MX=200,TN=document.title||location.pathname.split('/').filter(Boolean).pop()||'Unknown';function gl(){try{return JSON.parse(localStorage.getItem(SK)||'[]')}catch(e){return[]}}function sl(l){try{while(l.length>MX)l.shift();localStorage.setItem(SK,JSON.stringify(l))}catch(e){try{while(l.length>50)l.shift();localStorage.setItem(SK,JSON.stringify(l))}catch(e2){}}}function ae(e){e.tool=TN;e.url=location.href;e.timestamp=new Date().toISOString();e.userAgent=navigator.userAgent;const l=gl();l.push(e);sl(l)}
+(function(){'use strict';const SK=KEYS.ERROR_LOG,MX=200,TN=document.title||location.pathname.split('/').filter(Boolean).pop()||'Unknown';function gl(){try{return JSON.parse(localStorage.getItem(SK)||'[]')}catch(e){return[]}}function sl(l){try{while(l.length>MX)l.shift();localStorage.setItem(SK,JSON.stringify(l))}catch(e){try{while(l.length>50)l.shift();localStorage.setItem(SK,JSON.stringify(l))}catch(e2){}}}function ae(e){e.tool=TN;e.url=location.href;e.timestamp=new Date().toISOString();e.userAgent=navigator.userAgent;const l=gl();l.push(e);sl(l)}
 window.onerror=function(m,s,l,c,err){ae({type:'runtime-error',message:String(m),source:s||'',line:l||0,col:c||0,stack:err&&err.stack?String(err.stack).slice(0,2000):''});return false};
 window.addEventListener('unhandledrejection',function(e){const r=e.reason;ae({type:'unhandled-rejection',message:String(r),stack:r&&r.stack?String(r.stack).slice(0,2000):''})});
 var oce=console.error;console.error=function(){try{var a=Array.prototype.slice.call(arguments);ae({type:'console-error',message:a.map(function(x){try{return typeof x==='object'?JSON.stringify(x,null,2).slice(0,500):String(x)}catch(e){return String(x)}}).join(' ').slice(0,2000),args:a.length})}catch(e){}return oce.apply(console,arguments)};
@@ -538,9 +550,9 @@ async function apiFetch(endpoint, opts = {}) {
   }
 }
 
-const THEMES = ['dark','light']; let currentTheme = localStorage.getItem('remflow-theme')||'dark';
+const THEMES = ['dark','light']; let currentTheme = localStorage.getItem(KEYS.THEME)||'dark';
 document.documentElement.setAttribute('data-theme',currentTheme);
-function toggleTheme(){currentTheme=currentTheme==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',currentTheme);localStorage.setItem('remflow-theme',currentTheme)}
+function toggleTheme(){currentTheme=currentTheme==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',currentTheme);localStorage.setItem(KEYS.THEME,currentTheme)}
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('show')}
 function goBack(){history.back()}
 const SEVS=['Critical','High','Medium','Low'];
@@ -643,12 +655,12 @@ function parseCSV(text) {
 // ── Deployment Data from CSV Imports ───────────────────────────
 function getDeploymentRecords() {
   try {
-    return JSON.parse(localStorage.getItem('security-tools:remflow-deployments') || '[]');
+    return JSON.parse(localStorage.getItem(KEYS.DEPLOYMENTS) || '[]');
   } catch(e) { return []; }
 }
 
 function saveDeploymentRecords(records) {
-  localStorage.setItem('security-tools:remflow-deployments', JSON.stringify(records));
+  localStorage.setItem(KEYS.DEPLOYMENTS, JSON.stringify(records));
 }
 
 // Build deployment lookup: hostname -> {package, status, timestamp, exitCode}
@@ -672,7 +684,7 @@ function buildDeploymentLookup() {
 // ── ShieldView Integration ─────────────────────────────────────
 function getShieldViewFindings() {
   try {
-    return JSON.parse(localStorage.getItem('security-tools:imported-findings') || '[]');
+    return JSON.parse(localStorage.getItem(KEYS.IMPORTED_FINDINGS) || '[]');
   } catch(e) { return []; }
 }
 
@@ -810,7 +822,7 @@ function renderDashboardHTML(dash){
   const svFindings = getShieldViewFindings();
   if (svFindings.length > 0) {
     const svCVEs = getShieldViewCVEs();
-    const lastImport = localStorage.getItem('security-tools:remflow-last-import') || 'never';
+    const lastImport = localStorage.getItem(KEYS.LAST_IMPORT) || 'never';
     const lastImportDisplay = lastImport === 'never' ? 'never' : lastImport.slice(0,16).replace('T',' ');
     bannerHTML = `<div class="shieldview-banner">
       <span style="font-size:20px">🔗</span>
@@ -835,7 +847,7 @@ function renderDashboardHTML(dash){
   const pendingRem = checkCrossToolQueue();
   const svImportedFindings = getShieldViewFindings();
   const svImportedCVEs = getShieldViewCVEs();
-  const lastImport = localStorage.getItem('security-tools:remflow-last-import') || 'never';
+  const lastImport = localStorage.getItem(KEYS.LAST_IMPORT) || 'never';
   const lastImportDisplay = lastImport === 'never' ? 'never' : lastImport.slice(0,16).replace('T',' ');
 
   // Pipeline status bar
@@ -1364,7 +1376,7 @@ function renderDataSources(){
   const records = getDeploymentRecords();
   const svFindings = getShieldViewFindings();
   const svCVEs = getShieldViewCVEs();
-  const lastImport = localStorage.getItem('security-tools:remflow-last-import') || 'never';
+  const lastImport = localStorage.getItem(KEYS.LAST_IMPORT) || 'never';
   const lastImportDisplay = lastImport === 'never' ? 'never' : lastImport.slice(0,16).replace('T',' ');
 
   let html=`
@@ -1450,13 +1462,13 @@ function renderDataSources(){
 function renderPipeline(){
   const svFindings = getShieldViewFindings();
   const svCVEs = getShieldViewCVEs();
-  const lastImport = localStorage.getItem('security-tools:remflow-last-import') || 'never';
+  const lastImport = localStorage.getItem(KEYS.LAST_IMPORT) || 'never';
   const lastImportDisplay = lastImport === 'never' ? 'never' : lastImport.slice(0,16).replace('T',' ');
   const pendingRem = checkCrossToolQueue();
   const validatedRem = [];
-  try { validatedRem.push(...JSON.parse(localStorage.getItem('security-tools:validated-remediations') || '[]')); } catch(e) {}
+  try { validatedRem.push(...JSON.parse(localStorage.getItem(KEYS.VALIDATED_REMEDIATIONS) || '[]')); } catch(e) {}
   const queueRem = [];
-  try { queueRem.push(...JSON.parse(localStorage.getItem('security-tools:remediation-queue') || '[]')); } catch(e) {}
+  try { queueRem.push(...JSON.parse(localStorage.getItem(KEYS.REMEDIATION_QUEUE) || '[]')); } catch(e) {}
 
   let html = `<div class="card" style="margin-bottom:24px">
     <div class="card-title">🔄 RemFlow Pipeline</div>
@@ -1778,7 +1790,7 @@ function renderImportedRecordsTable() {
 
 function clearDeploymentRecords() {
   if (confirm('Clear all imported deployment records?')) {
-    localStorage.removeItem('security-tools:remflow-deployments');
+    localStorage.removeItem(KEYS.DEPLOYMENTS);
     renderImportedRecordsTable();
     showToast('🗑️ Deployment records cleared');
   }
@@ -1849,7 +1861,7 @@ function importFromShieldView() {
   });
 
   // Store timestamp
-  localStorage.setItem('security-tools:remflow-last-import', new Date().toISOString());
+  localStorage.setItem(KEYS.LAST_IMPORT, new Date().toISOString());
 
   const result = document.getElementById('sv-import-result');
   result.innerHTML = `<div style="padding:12px;background:var(--installed-bg);border:1px solid var(--installed);border-radius:var(--radius);color:var(--installed);font-weight:600">
@@ -1867,7 +1879,7 @@ function importFromShieldView() {
 
 function pushToTheValidator(cveId) {
   try {
-    const queue = JSON.parse(localStorage.getItem('security-tools:remediation-queue') || '[]');
+    const queue = JSON.parse(localStorage.getItem(KEYS.REMEDIATION_QUEUE) || '[]');
     // Check if already queued
     const existing = queue.find(i => i.cve === cveId && i.status === 'pending');
     if (existing) {
@@ -1886,7 +1898,7 @@ function pushToTheValidator(cveId) {
       queuedAt: new Date().toISOString(),
       coverage: rem ? rem.coverage : 0
     });
-    localStorage.setItem('security-tools:remediation-queue', JSON.stringify(queue));
+    localStorage.setItem(KEYS.REMEDIATION_QUEUE, JSON.stringify(queue));
     showToast(`📤 ${cveId} pushed to TheValidator validation queue`);
   } catch(e) {
     showToast('⚠️ Failed to push: ' + e.message);
@@ -1898,7 +1910,7 @@ function pushAllToTheValidator() {
   let count = 0;
   allRems.forEach(r => {
     try {
-      const queue = JSON.parse(localStorage.getItem('security-tools:remediation-queue') || '[]');
+      const queue = JSON.parse(localStorage.getItem(KEYS.REMEDIATION_QUEUE) || '[]');
       if (!queue.find(i => i.cve === r.cve && i.status === 'pending')) {
         queue.push({
           cve: r.cve,
@@ -1911,7 +1923,7 @@ function pushAllToTheValidator() {
           queuedAt: new Date().toISOString(),
           coverage: r.coverage || 0
         });
-        localStorage.setItem('security-tools:remediation-queue', JSON.stringify(queue));
+        localStorage.setItem(KEYS.REMEDIATION_QUEUE, JSON.stringify(queue));
         count++;
       }
     } catch(e) {}
@@ -2262,19 +2274,19 @@ function showToast(msg){
 
 // Cross-tool localStorage bridge
 function checkCrossToolQueue() {
-  try { return JSON.parse(localStorage.getItem('security-tools:remediation-queue') || '[]').filter(i => i.status === 'pending'); }
+  try { return JSON.parse(localStorage.getItem(KEYS.REMEDIATION_QUEUE) || '[]').filter(i => i.status === 'pending'); }
   catch(e) { return []; }
 }
 function markRemediationComplete(cveId) {
   try {
-    const queue = JSON.parse(localStorage.getItem('security-tools:remediation-queue') || '[]');
+    const queue = JSON.parse(localStorage.getItem(KEYS.REMEDIATION_QUEUE) || '[]');
     const updated = queue.map(i => i.cve === cveId ? {...i, status: 'deployed', completedAt: new Date().toISOString()} : i);
-    localStorage.setItem('security-tools:remediation-queue', JSON.stringify(updated));
-    const validated = JSON.parse(localStorage.getItem('security-tools:validated-remediations') || '[]');
+    localStorage.setItem(KEYS.REMEDIATION_QUEUE, JSON.stringify(updated));
+    const validated = JSON.parse(localStorage.getItem(KEYS.VALIDATED_REMEDIATIONS) || '[]');
     const item = queue.find(i => i.cve === cveId);
     if (item && !validated.find(v => v.cve === cveId)) {
       validated.push({...item, status: 'validated', validatedAt: new Date().toISOString()});
-      localStorage.setItem('security-tools:validated-remediations', JSON.stringify(validated));
+      localStorage.setItem(KEYS.VALIDATED_REMEDIATIONS, JSON.stringify(validated));
     }
   } catch(e) {}
 }
