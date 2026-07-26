@@ -1540,9 +1540,10 @@ function renderRemTable(){
   const depLookup = buildDeploymentLookup();
 
   let filtered=all.filter(r=>{
+    const cve = String(r.cve || '').toLowerCase();
+    const id = String(r.id || '').toLowerCase();
     if(st!=='all'&&r.status!==st)return false;
-    if(!q||r.cve.toLowerCase().includes(q)||r.id.toLowerCase().includes(q)){
-      // Check deployment status filter
+    if(!q||cve.includes(q)||id.includes(q)){
       if(ds!=='all') {
         const rStatuses = getRemediationDeployStats(r, depLookup);
         if (ds==='installed' && rStatuses.installed===0) return false;
@@ -1557,46 +1558,49 @@ function renderRemTable(){
   let rows=filtered.map(r=>{
     const stats = getRemediationDeployStats(r, depLookup);
     const totalDeploy = stats.installed + stats.pending + stats.failed;
-    const deployCoverage = r.targetCount > 0 ? Math.round((stats.installed / r.targetCount) * 100) : 0;
+    const targetCount = Number(r.targetCount || 0);
+    const deployCoverage = targetCount > 0 ? Math.round((stats.installed / targetCount) * 100) : 0;
+    const id = String(r.id || '');
+    const cve = String(r.cve || 'N/A');
 
-    // Build deployment bar
     let depBar = '';
     if (totalDeploy > 0) {
-      const iPct = Math.round((stats.installed / totalDeploy) * 100);
-      const pPct = Math.round((stats.pending / totalDeploy) * 100);
-      const fPct = 100 - iPct - pPct;
+      const iPct = Math.max(0, Math.min(100, Math.round((stats.installed / totalDeploy) * 100)));
+      const pPct = Math.max(0, Math.min(100, Math.round((stats.pending / totalDeploy) * 100)));
+      const fPct = Math.max(0, Math.min(100, 100 - iPct - pPct));
       depBar = `<div class="deployment-bar" style="width:80px">
         <div class="db-installed" style="width:${iPct}%"></div>
         <div class="db-pending" style="width:${pPct}%"></div>
         <div class="db-failed" style="width:${fPct}%"></div>
       </div>
-      <span class="deployment-tooltip">${stats.installed}✓ ${stats.pending}⏳ ${stats.failed}✗</span>`;
+      <span class="deployment-tooltip">${stats.installed} ok ${stats.pending} pending ${stats.failed} failed</span>`;
     } else {
-      depBar = `<span style="font-size:11px;color:var(--text-muted)">—</span>`;
+      depBar = `<span style="font-size:11px;color:var(--text-muted)">-</span>`;
     }
 
-    // Deployment coverage %
     const covColor = deployCoverage >= 80 ? 'var(--low)' : deployCoverage >= 50 ? 'var(--medium)' : 'var(--critical)';
     const depCovHTML = totalDeploy > 0
       ? `<span style="font-size:12px;color:${covColor};font-weight:600">${deployCoverage}%</span>`
-      : `<span style="font-size:11px;color:var(--text-muted)">—</span>`;
+      : `<span style="font-size:11px;color:var(--text-muted)">-</span>`;
+    const ring = getRingInfo(id);
+    const rowIdArg = escHtml(JSON.stringify(id));
+    const cveArg = escHtml(JSON.stringify(cve));
 
-    return `<tr class="clickable" onclick="viewRemediation('${r.id}')">
-      <td class="mono text-link">${r.id}</td>
-      <td class="mono">${r.cve}${r.fromShieldView?' <span style="font-size:10px;color:var(--accent)">🔗SV</span>':''}</td>
-      <td>${r.kb||'—'}</td>
-      <td>${r.targetCount}</td>
-      <td>${(()=>{ const ri = getRingInfo(r.id); return renderRingBadge(ri.ring, ri.blocked); })()}</td>
+    return `<tr class="clickable" onclick='viewRemediation(${rowIdArg})'>
+      <td class="mono text-link">${escHtml(id)}</td>
+      <td class="mono">${escHtml(cve)}${r.fromShieldView?' <span style="font-size:10px;color:var(--accent)">SV</span>':''}</td>
+      <td>${escHtml(r.kb||'-')}</td>
+      <td>${targetCount}</td>
+      <td>${renderRingBadge(ring.ring, ring.blocked)}</td>
       <td>${depCovHTML}</td>
       <td>${depBar}</td>
-      <td style="font-size:12px;color:var(--text-muted)">${r.created}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${escHtml(r.created || '')}</td>
       <td>${statusBadge(r.status)}</td>
-      <td><button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();pushToTheValidator('${r.cve}')" title="Push to TheValidator">📤</button></td>
+      <td><button class="btn btn-sm btn-ghost" onclick='event.stopPropagation();pushToTheValidator(${cveArg})' title="Push to TheValidator">Push</button></td>
     </tr>`;
   }).join('');
   document.getElementById('rem-tbody').innerHTML=rows||'<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text-muted)">No remediations match</td></tr>';
 }
-
 // Calculate deployment status for a remediation based on its targets
 function getRemediationDeployStats(remediation, depLookup) {
   const stats = { installed: 0, pending: 0, failed: 0 };
@@ -4181,156 +4185,11 @@ window.onerror = function(msg, file, line, col, err) {
     }
   } catch(e) {}
 })();
+</script>
 
-
-// ===== SUITE PIPELINE HEALTH UI =====
-(function(){
-  'use strict';
-  const APP_NAME = "RemFlow";
-  const CONTRACT_VERSION = '2.0.0';
-  const KEYS = {
-    CONTRACT_VERSION: 'security-tools:contract-version',
-    FINDINGS: 'security-tools:imported-findings',
-    REMEDIATION_QUEUE: 'security-tools:remediation-queue',
-    VALIDATED_REMEDIATIONS: 'security-tools:validated-remediations',
-    VERIFIED_QUEUE: 'security-tools:verified-queue',
-    LAST_REMEDIATION: 'security-tools:last-remediation',
-    LAST_LAUNCHPAD_PUSH: 'security-tools:last-launchpad-push'
-  };
-
-  function readCollection(key, issues) {
-    try {
-      const raw = localStorage.getItem(key);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
-      if (parsed && Array.isArray(parsed.rows)) return parsed.rows;
-      if (parsed && Array.isArray(parsed.data)) return parsed.data;
-      issues.push(key + ' is not an array collection');
-      return [];
-    } catch(e) {
-      issues.push(key + ' contains unreadable JSON');
-      return [];
-    }
-  }
-
-  function normalize(value) { return String(value || '').trim().toUpperCase(); }
-  function unique(values) { return Array.from(new Set((values || []).map(v => String(v || '').trim()).filter(Boolean))); }
-  function isCanonicalRemediation(item) {
-    return !!(item && typeof item.cve === 'string' && item.cve && typeof item.name === 'string' && item.name && Array.isArray(item.assets) && item.assets.length > 0 && ['pending','queued','deployed','verified','failed','blocked','rolledBack'].includes(item.status));
-  }
-  function findingIdentity(finding) {
-    if (!finding) return '';
-    if (finding.findingId || finding.id) return String(finding.findingId || finding.id);
-    return [finding.cve, finding.asset || finding.hostname, finding.port || '', finding.pluginId || '', finding.check || finding.name || ''].map(normalize).join('|');
-  }
-  function verificationMatched(record, findings) {
-    const identity = normalize(record.findingId || record.identityKey || record.sourceFindingId || '');
-    if (identity && findings.some(f => unique([f.findingId, f.id, findingIdentity(f)]).map(normalize).includes(identity))) return true;
-    const cve = normalize(record.cve);
-    const asset = normalize(record.asset || record.hostname || '');
-    return !!(cve && asset && findings.some(f => normalize(f.cve) === cve && normalize(f.asset || f.hostname || '') === asset));
-  }
-  function getState() {
-    const issues = [];
-    const storedVersion = localStorage.getItem(KEYS.CONTRACT_VERSION);
-    if (storedVersion && storedVersion !== CONTRACT_VERSION) issues.push('Contract version mismatch: stored ' + storedVersion + ', expected ' + CONTRACT_VERSION);
-    const findings = readCollection(KEYS.FINDINGS, issues);
-    const queue = readCollection(KEYS.REMEDIATION_QUEUE, issues);
-    const validated = readCollection(KEYS.VALIDATED_REMEDIATIONS, issues);
-    const verifiedQueue = readCollection(KEYS.VERIFIED_QUEUE, issues);
-    queue.forEach((item, index) => { if (!isCanonicalRemediation(item)) issues.push('Remediation queue item #' + (index + 1) + ' is not canonical'); });
-    verifiedQueue.forEach((record, index) => { if (!verificationMatched(record, findings)) issues.push('Verified queue item #' + (index + 1) + ' has no matching ShieldView finding'); });
-    return {
-      queue, validated, verifiedQueue, issues,
-      pending: queue.filter(i => i.status === 'pending').length,
-      queued: queue.filter(i => i.status === 'queued').length,
-      deployed: queue.filter(i => i.status === 'deployed').length,
-      verified: queue.filter(i => i.status === 'verified').length + validated.length + verifiedQueue.filter(i => i.result === 'pass').length,
-      failed: queue.filter(i => i.status === 'failed').length + verifiedQueue.filter(i => i.result === 'fail').length,
-      blocked: queue.filter(i => i.status === 'blocked').length,
-      rolledBack: queue.filter(i => i.status === 'rolledBack').length
-    };
-  }
-  function addStyles() {
-    if (document.getElementById('suite-health-style')) return;
-    const style = document.createElement('style');
-    style.id = 'suite-health-style';
-    style.textContent = '.suite-health{position:sticky;top:0;z-index:9999;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 14px;background:#101820;color:#e8eef4;border-bottom:1px solid rgba(255,255,255,.14);font:12px/1.3 system-ui,-apple-system,Segoe UI,sans-serif}.suite-health strong{font-size:12px;color:#fff}.suite-health-step{display:inline-flex;align-items:center;gap:6px;color:#c8d4df}.suite-health-pill{display:inline-flex;align-items:center;gap:4px;min-height:22px;padding:2px 8px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);color:#e8eef4;border-radius:999px}.suite-health-pill[data-hot="true"]{border-color:#f0b429;color:#ffe8a3}.suite-health-spacer{flex:1}.suite-health-btn{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;border-radius:6px;padding:4px 8px;cursor:pointer;font:12px system-ui}.suite-health-btn[data-issues="true"]{background:#4a1f26;border-color:#ff6b7a}.suite-issues{position:fixed;right:14px;top:48px;z-index:10000;width:min(420px,calc(100vw - 28px));max-height:60vh;overflow:auto;background:#111820;color:#e8eef4;border:1px solid rgba(255,255,255,.2);box-shadow:0 18px 48px rgba(0,0,0,.35);border-radius:8px;padding:12px;display:none}.suite-issues.open{display:block}.suite-issues h3{margin:0 0 8px;font-size:14px}.suite-issues-list{display:grid;gap:8px}.suite-issue{padding:8px;border-radius:6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#ffd7dd;font-size:12px}.suite-issue-empty{color:#a7f3c1}.suite-health + .suite-issues + *{scroll-margin-top:44px}';
-    document.head.appendChild(style);
-  }
-  function pill(label, value, hot) {
-    const el = document.createElement('span');
-    el.className = 'suite-health-pill';
-    if (hot) el.dataset.hot = 'true';
-    el.textContent = label + ': ' + value;
-    return el;
-  }
-  function render() {
-    addStyles();
-    let bar = document.getElementById('suite-health');
-    let drawer = document.getElementById('suite-issues');
-    if (!bar) {
-      bar = document.createElement('div');
-      bar.id = 'suite-health';
-      bar.className = 'suite-health';
-      drawer = document.createElement('div');
-      drawer.id = 'suite-issues';
-      drawer.className = 'suite-issues';
-      document.body.insertBefore(drawer, document.body.firstChild);
-      document.body.insertBefore(bar, drawer);
-    }
-    const state = getState();
-    bar.textContent = '';
-    const title = document.createElement('strong');
-    title.textContent = APP_NAME;
-    bar.appendChild(title);
-    const flow = document.createElement('span');
-    flow.className = 'suite-health-step';
-    flow.textContent = 'ShieldView -> RemFlow -> TheValidator -> ShieldView';
-    bar.appendChild(flow);
-    bar.appendChild(pill('pending', state.pending, state.pending > 0));
-    bar.appendChild(pill('queued', state.queued, state.queued > 0));
-    bar.appendChild(pill('deployed', state.deployed, state.deployed > 0));
-    bar.appendChild(pill('verified', state.verified, false));
-    bar.appendChild(pill('failed', state.failed, state.failed > 0));
-    bar.appendChild(pill('blocked', state.blocked, state.blocked > 0));
-    const spacer = document.createElement('span');
-    spacer.className = 'suite-health-spacer';
-    bar.appendChild(spacer);
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'suite-health-btn';
-    btn.dataset.issues = state.issues.length > 0 ? 'true' : 'false';
-    btn.textContent = 'Pipeline Issues (' + state.issues.length + ')';
-    btn.onclick = function(){ drawer.classList.toggle('open'); };
-    bar.appendChild(btn);
-    drawer.textContent = '';
-    const heading = document.createElement('h3');
-    heading.textContent = 'Pipeline Issues';
-    drawer.appendChild(heading);
-    const list = document.createElement('div');
-    list.className = 'suite-issues-list';
-    if (state.issues.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'suite-issue-empty';
-      empty.textContent = 'No malformed queue records or unmatched verification records detected.';
-      list.appendChild(empty);
-    } else {
-      state.issues.forEach(function(issue) {
-        const item = document.createElement('div');
-        item.className = 'suite-issue';
-        item.textContent = issue;
-        list.appendChild(item);
-      });
-    }
-    drawer.appendChild(list);
-  }
-  window.__renderSuitePipelineHealth = render;
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', render); else render();
-  window.addEventListener('storage', function(e){ if (e.key && e.key.indexOf('security-tools:') === 0) render(); });
-  setInterval(render, 5000);
-})();
+<script type="module">
+import { installSuiteHealth } from '/launchpad/shared/suite-health.js';
+installSuiteHealth("RemFlow");
 </script>
 </body>
 </html>
